@@ -1,69 +1,145 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import React, { useState } from 'react';
+import { EmployeeProvider, useEmployee, RouteStop } from '../context/EmployeeContext';
+import { MobileFrameShell } from '../components/layout/MobileFrameShell';
+import { BottomNavBar } from '../components/layout/BottomNavBar';
+import { HomeScreen } from '../components/home/HomeScreen';
+import { MyPickupsScreen } from '../components/pickups/MyPickupsScreen';
+import { ProfileScreen } from '../components/profile/ProfileScreen';
+import { LiveRouteNavigationScreen } from '../components/navigation/LiveRouteNavigationScreen';
+import { IncomingPickupAlertModal } from '../components/navigation/IncomingPickupAlertModal';
+import { ScanCustomerQrScreen } from '../components/verification/ScanCustomerQrScreen';
+import { PickupVerifiedScreen } from '../components/verification/PickupVerifiedScreen';
+import { AddScrapCatalogScreen } from '../components/collection/AddScrapCatalogScreen';
+import { AddedItemsWeightScreen } from '../components/collection/AddedItemsWeightScreen';
+import { EditPickupDetailsScreen } from '../components/collection/EditPickupDetailsScreen';
+import { CustomerReviewScreen } from '../components/collection/CustomerReviewScreen';
+import { CustomerOtpScreen } from '../components/verification/CustomerOtpScreen';
+import { PickupCompletedScreen } from '../components/verification/PickupCompletedScreen';
+
+function EmployeeAppContent() {
+  const {
+    activeTab,
+    setActiveTab,
+    setActivePickup,
+    setShiftStatus,
+    isLiveNavOpen,
+    setIsLiveNavOpen,
+    startLiveNavigation,
+    pickupStep,
+    setPickupStep,
+  } = useEmployee();
+
+  const handleStartPickupFlow = (pickupCode: string) => {
+    setPickupStep('STEP_1_SCAN_QR');
+  };
+
+  const handleNavigateToPickup = (stop: RouteStop) => {
+    startLiveNavigation(stop);
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <MobileFrameShell>
+      {/* 1. Live Rapido Turn-by-Turn Navigation */}
+      {isLiveNavOpen ? (
+        <LiveRouteNavigationScreen
+          onArrivedAtDoorstep={(stop) => {
+            setIsLiveNavOpen(false);
+            setPickupStep('STEP_1_SCAN_QR');
+          }}
+          onExitNavigation={() => setIsLiveNavOpen(false)}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
+      ) : pickupStep === 'STEP_1_SCAN_QR' ? (
+        /* 2. Step 1: Scan Customer QR Viewfinder */
+        <ScanCustomerQrScreen
+          onScanSuccess={() => setPickupStep('STEP_2_VERIFIED')}
+          onCancel={() => setPickupStep('IDLE')}
+        />
+      ) : pickupStep === 'STEP_2_VERIFIED' ? (
+        /* 3. Step 2: Pickup Verified Confirmation */
+        <PickupVerifiedScreen
+          onContinueToCatalog={() => setPickupStep('STEP_4_CATALOG')}
+          onBack={() => setPickupStep('STEP_1_SCAN_QR')}
+        />
+      ) : pickupStep === 'STEP_4_CATALOG' ? (
+        /* 4. Step 4: Add Scrap Catalog Screen */
+        <AddScrapCatalogScreen
+          onDone={() => setPickupStep('STEP_6_WEIGHTS')}
+          onBack={() => setPickupStep('STEP_2_VERIFIED')}
+        />
+      ) : pickupStep === 'STEP_6_WEIGHTS' ? (
+        /* 5. Step 6: Added Items & Digital Weight Entry */
+        <AddedItemsWeightScreen
+          onCheckoutOverview={() => setPickupStep('STEP_10_REVIEW')}
+          onAddMoreScrap={() => setPickupStep('STEP_4_CATALOG')}
+          onBack={() => setPickupStep('STEP_4_CATALOG')}
+        />
+      ) : pickupStep === 'STEP_10_REVIEW' ? (
+        /* 6. Step 10: Customer Review Screen */
+        <CustomerReviewScreen
+          onCustomerConfirmed={() => setPickupStep('STEP_15_OTP')}
+          onEditDetails={() => setPickupStep('STEP_11_EDIT')}
+          onBack={() => setPickupStep('STEP_6_WEIGHTS')}
+        />
+      ) : pickupStep === 'STEP_11_EDIT' ? (
+        /* 7. Step 11: Edit Pickup Details Screen */
+        <EditPickupDetailsScreen
+          onSaveChanges={() => setPickupStep('STEP_10_REVIEW')}
+          onAddMoreScrap={() => setPickupStep('STEP_4_CATALOG')}
+          onBack={() => setPickupStep('STEP_10_REVIEW')}
+        />
+      ) : pickupStep === 'STEP_15_OTP' ? (
+        /* 8. Step 15: Confirm Pickup Completion with Customer OTP */
+        <CustomerOtpScreen
+          onVerifySuccess={() => setPickupStep('STEP_19_COMPLETED')}
+          onBack={() => setPickupStep('STEP_10_REVIEW')}
+        />
+      ) : pickupStep === 'STEP_19_COMPLETED' ? (
+        /* 9. Step 19: Pickup Successfully Completed Voucher */
+        <PickupCompletedScreen
+          onDone={() => {
+            setPickupStep('IDLE');
+            setActiveTab('HOME');
+          }}
+        />
+      ) : (
+        /* 10. Default Mobile Tab Views with Persistent Bottom Navigation */
+        <>
+          {activeTab === 'HOME' && (
+            <HomeScreen
+              onStartPickupFlow={handleStartPickupFlow}
+              onNavigateToPickup={handleNavigateToPickup}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+          )}
+
+          {activeTab === 'MY_PICKUPS' && (
+            <MyPickupsScreen
+              onSelectStop={(stop) => {
+                setActivePickup(stop);
+                setActiveTab('HOME');
+              }}
+              onNavigateToStop={(stop) => handleNavigateToPickup(stop)}
+            />
+          )}
+
+          {activeTab === 'PROFILE' && <ProfileScreen />}
+
+          {/* Persistent Mobile Bottom Navigation Bar */}
+          <BottomNavBar />
+        </>
+      )}
+
+      {/* Real-time Uber / Rapido Dispatch Alert Overlay */}
+      <IncomingPickupAlertModal />
+    </MobileFrameShell>
+  );
+}
+
+export default function EmployeeAppPage() {
+  return (
+    <EmployeeProvider>
+      <EmployeeAppContent />
+    </EmployeeProvider>
   );
 }
