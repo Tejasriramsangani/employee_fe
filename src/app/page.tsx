@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { EmployeeProvider, useEmployee, RouteStop } from '../context/EmployeeContext';
 import { MobileFrameShell } from '../components/layout/MobileFrameShell';
 import { BottomNavBar } from '../components/layout/BottomNavBar';
@@ -17,9 +17,16 @@ import { EditPickupDetailsScreen } from '../components/collection/EditPickupDeta
 import { CustomerReviewScreen } from '../components/collection/CustomerReviewScreen';
 import { CustomerOtpScreen } from '../components/verification/CustomerOtpScreen';
 import { PickupCompletedScreen } from '../components/verification/PickupCompletedScreen';
+import { ServerDownScreen } from '../components/common/ServerDownScreen';
+import { EmployeeLoginScreen } from '../components/auth/EmployeeLoginScreen';
+import { fieldOpsApi } from '../services/api';
 
 function EmployeeAppContent() {
   const {
+    isAuthenticated,
+    setIsAuthenticated,
+    isLoadingAuth,
+    refreshDashboardData,
     activeTab,
     setActiveTab,
     setActivePickup,
@@ -31,6 +38,25 @@ function EmployeeAppContent() {
     setPickupStep,
   } = useEmployee();
 
+  const [isServerDown, setIsServerDown] = useState(false);
+  const [serverErrorDetails, setServerErrorDetails] = useState('');
+  const [isRetryingServer, setIsRetryingServer] = useState(false);
+
+  useEffect(() => {
+    fieldOpsApi.checkHealth();
+    const unsub = fieldOpsApi.onServerStatusChange((down, details) => {
+      setIsServerDown(down);
+      if (details) setServerErrorDetails(details);
+    });
+    return () => unsub();
+  }, []);
+
+  const handleRetryServer = async () => {
+    setIsRetryingServer(true);
+    await fieldOpsApi.checkHealth();
+    setIsRetryingServer(false);
+  };
+
   const handleStartPickupFlow = (pickupCode: string) => {
     setPickupStep('STEP_1_SCAN_QR');
   };
@@ -38,6 +64,40 @@ function EmployeeAppContent() {
   const handleNavigateToPickup = (stop: RouteStop) => {
     startLiveNavigation(stop);
   };
+
+  if (isServerDown) {
+    return (
+      <ServerDownScreen
+        onRetry={handleRetryServer}
+        isRetrying={isRetryingServer}
+        errorDetails={serverErrorDetails}
+      />
+    );
+  }
+
+  if (isLoadingAuth) {
+    return (
+      <MobileFrameShell>
+        <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
+          <div className="w-10 h-10 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4" />
+          <p className="text-xs font-bold text-slate-300">Loading Asli Kaata Field Ops...</p>
+        </div>
+      </MobileFrameShell>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <MobileFrameShell>
+        <EmployeeLoginScreen
+          onLoginSuccess={async () => {
+            setIsAuthenticated(true);
+            await refreshDashboardData();
+          }}
+        />
+      </MobileFrameShell>
+    );
+  }
 
   return (
     <MobileFrameShell>
