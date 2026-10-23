@@ -35,6 +35,7 @@ export const ProfileScreen: React.FC = () => {
     addRouteExpense,
     isShiftClosed,
     closeShiftAndHandover,
+    logout,
   } = useEmployee();
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -257,6 +258,15 @@ export const ProfileScreen: React.FC = () => {
             <span>Close Shift & Evening Handover</span>
           </button>
         )}
+
+        <button
+          type="button"
+          onClick={logout}
+          className="w-full mt-2 py-3 rounded-2xl bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer shadow-2xs active:scale-[0.99]"
+        >
+          <LogOut className="w-4 h-4 text-rose-500" />
+          <span>Sign Out of Device</span>
+        </button>
       </div>
 
       {/* --- MODAL 1: Route Incidentals Quick-Entry Modal (Task 7.4) --- */}

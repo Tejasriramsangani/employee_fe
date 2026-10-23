@@ -114,8 +114,8 @@ export const LiveRouteNavigationScreen: React.FC<LiveRouteNavigationScreenProps>
   };
 
   const handleOpenGoogleMaps = () => {
-    const query = encodeURIComponent(`${stop.address}, ${stop.locality}`);
-    window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank');
+    const destination = encodeURIComponent(`${stop.address}, ${stop.locality}`);
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${destination}`, '_blank');
   };
 
   const handleConfirmArrival = () => {

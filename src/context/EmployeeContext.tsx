@@ -1,6 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { fieldOpsApi } from '../services/api';
 
 export type ShiftStatus = 'AVAILABLE' | 'ON_PICKUP' | 'COMPLETED';
 export type AppTab = 'HOME' | 'MY_PICKUPS' | 'PROFILE';
@@ -37,24 +38,24 @@ export type PickupStep =
 
 export interface EmployeeProfile {
   id: string;
-  employeeCode: string; // AKP-EMP-0247
-  name: string; // Ravi Kumar
+  employeeCode: string;
+  name: string;
   role: 'FIELD_COLLECTOR' | 'DRIVER';
   phone: string;
-  assignedDivision: string; // Vijayawada Central
-  vehicleReg: string; // AP 16 TX 4021
-  vehicleName: string; // Mahindra Treo Zor EV-01
+  assignedDivision: string;
+  vehicleReg: string;
+  vehicleName: string;
   batteryPct: number;
   kycVerified: boolean;
-  fixedDailyWageRupees: number; // 750
-  incentivePerKgRupees: number; // 0.50
+  fixedDailyWageRupees: number;
+  incentivePerKgRupees: number;
 }
 
 export interface CashFloatWallet {
-  openingFloatRupees: number; // 15,000
-  customerPaidOutRupees: number; // 11,450
-  approvedRouteExpensesRupees: number; // 130.50
-  expectedCashToReturnRupees: number; // 3,419.50
+  openingFloatRupees: number;
+  customerPaidOutRupees: number;
+  approvedRouteExpensesRupees: number;
+  expectedCashToReturnRupees: number;
   isBalanced: boolean;
 }
 
@@ -70,7 +71,7 @@ export interface RouteExpense {
 export interface ScrapCatalogItem {
   id: string;
   name: string;
-  category: 'All' | 'Paper' | 'Plastic' | 'Metal' | 'E-Waste' | 'Rubber' | 'Others';
+  category: 'All' | 'Paper' | 'Plastic' | 'Metal' | 'E-Waste' | 'Rubber' | 'Others' | string;
   ratePerKg: number;
   unit: string;
   iconType: string;
@@ -86,6 +87,13 @@ export interface CollectedScrapItem {
 }
 
 interface EmployeeContextType {
+  // Authentication State
+  isAuthenticated: boolean;
+  setIsAuthenticated: (auth: boolean) => void;
+  isLoadingAuth: boolean;
+  logout: () => void;
+  refreshDashboardData: () => Promise<void>;
+
   profile: EmployeeProfile;
   shiftStatus: ShiftStatus;
   setShiftStatus: (status: ShiftStatus) => void;
@@ -140,175 +148,197 @@ interface EmployeeContextType {
   startActivePickupFlow: (pickupId: string) => void;
 }
 
-// Initial Seed Route Stops matching Image 2
-const INITIAL_STOPS: RouteStop[] = [
-  {
-    id: 'stop_01',
-    stopNumber: 1,
-    pickupCode: 'AKP-10231',
-    customerName: 'Suresh Kumar',
-    phone: '9848123001',
-    timeSlot: '09:00 AM - 11:00 AM',
-    scheduledTime: '09:00 AM',
-    address: 'Flat 302, Sri Sai Residency, Benz Circle',
-    locality: 'Benz Circle, Vijayawada',
-    landmark: 'Opposite Sweet Magic',
-    estimatedWeightKg: 25,
-    itemsCategoryHint: 'Newspaper, Cardboard, Iron',
-    status: 'COMPLETED',
-    completedAt: '09:42 AM',
-    finalWeightKg: 26.5,
-    finalScrapValueRupees: 420,
-  },
-  {
-    id: 'stop_02',
-    stopNumber: 2,
-    pickupCode: 'AKP-10245',
-    customerName: 'Vinay Palakonda',
-    phone: '9908123456',
-    timeSlot: '11:00 AM - 01:00 PM',
-    scheduledTime: '11:00 AM',
-    address: 'Door 14-8-2, Behind Rythu Bazar, Madhura Nagar',
-    locality: 'Madhura Nagar, Vijayawada',
-    landmark: 'Near Water Tank',
-    estimatedWeightKg: 28,
-    itemsCategoryHint: 'Cardboard, PET Bottles, Iron',
-    status: 'IN_PROGRESS',
-  },
-  {
-    id: 'stop_03',
-    stopNumber: 3,
-    pickupCode: 'AKP-10238',
-    customerName: 'Priya Sharma',
-    phone: '9866234502',
-    timeSlot: '01:00 PM - 03:00 PM',
-    scheduledTime: '01:00 PM',
-    address: 'House 5, Road 2, Suryaraopet',
-    locality: 'Suryaraopet, Vijayawada',
-    landmark: 'Near Sub-Collector Office',
-    estimatedWeightKg: 18,
-    itemsCategoryHint: 'Office White Paper, Plastic',
-    status: 'SCHEDULED',
-  },
-  {
-    id: 'stop_04',
-    stopNumber: 4,
-    pickupCode: 'AKP-10241',
-    customerName: 'Lakshmi Devi',
-    phone: '9701445566',
-    timeSlot: '03:30 PM - 05:30 PM',
-    scheduledTime: '03:30 PM',
-    address: 'Shop 12, Main Bazaar, Governorpet',
-    locality: 'Governorpet, Vijayawada',
-    landmark: 'Near Apsara Theatre',
-    estimatedWeightKg: 45,
-    itemsCategoryHint: 'Copper Wire, Heavy Iron',
-    status: 'SCHEDULED',
-  },
-  {
-    id: 'stop_05',
-    stopNumber: 5,
-    pickupCode: 'AKP-10249',
-    customerName: 'Krishna Murthy',
-    phone: '9849112233',
-    timeSlot: '04:45 PM - 06:00 PM',
-    scheduledTime: '04:45 PM',
-    address: 'Plot 48, Hill View Colony, Moghalrajpuram',
-    locality: 'Moghalrajpuram, Vijayawada',
-    landmark: 'Near Siddhartha College',
-    estimatedWeightKg: 32,
-    itemsCategoryHint: 'Old Books, Cardboard, Tin',
-    status: 'SCHEDULED',
-  },
-  {
-    id: 'stop_06',
-    stopNumber: 6,
-    pickupCode: 'AKP-10252',
-    customerName: 'Srinivasa Rao',
-    phone: '9988776655',
-    timeSlot: '05:30 PM - 07:00 PM',
-    scheduledTime: '05:30 PM',
-    address: 'Building 8, MG Road, Labbipet',
-    locality: 'Labbipet, Vijayawada',
-    landmark: 'Near DV Manor Hotel',
-    estimatedWeightKg: 50,
-    itemsCategoryHint: 'E-Waste, Batteries, Metal',
-    status: 'SCHEDULED',
-  },
-];
-
-const INITIAL_PROFILE: EmployeeProfile = {
-  id: 'emp_01',
-  employeeCode: 'AKP-EMP-0247',
-  name: 'Ravi Kumar',
+const DEFAULT_PROFILE: EmployeeProfile = {
+  id: 'emp_001',
+  employeeCode: 'EMP-001',
+  name: 'Ramesh Kumar',
   role: 'FIELD_COLLECTOR',
-  phone: '9876543210',
+  phone: '9848011111',
   assignedDivision: 'Vijayawada Central Yard',
-  vehicleReg: 'AP 16 TX 4021',
-  vehicleName: 'Mahindra Treo Zor EV-01',
-  batteryPct: 82,
+  vehicleReg: 'AP 16 TX 4920',
+  vehicleName: 'Tata Ace Gold (Diesel)',
+  batteryPct: 92,
   kycVerified: true,
   fixedDailyWageRupees: 750,
   incentivePerKgRupees: 0.50,
 };
 
-const INITIAL_WALLET: CashFloatWallet = {
-  openingFloatRupees: 15000,
-  customerPaidOutRupees: 11450,
-  approvedRouteExpensesRupees: 130.50,
-  expectedCashToReturnRupees: 3419.50,
+const DEFAULT_WALLET: CashFloatWallet = {
+  openingFloatRupees: 5000,
+  customerPaidOutRupees: 0,
+  approvedRouteExpensesRupees: 0,
+  expectedCashToReturnRupees: 5000,
   isBalanced: true,
 };
-
-const INITIAL_EXPENSES: RouteExpense[] = [
-  {
-    id: 'exp_01',
-    category: 'Tyre Puncture & Air',
-    amount: 50.0,
-    notes: 'Rear left tyre puncture fixed at Benz Circle',
-    time: '10:15 AM',
-    receiptAttached: true,
-  },
-  {
-    id: 'exp_02',
-    category: 'Municipal Bridge Toll',
-    amount: 80.5,
-    notes: 'Municipal corridor commercial toll receipt',
-    time: '11:45 AM',
-    receiptAttached: true,
-  },
-];
-
-const INITIAL_CATALOG: ScrapCatalogItem[] = [
-  { id: 'item_newspaper', name: 'Newspaper', category: 'Paper', ratePerKg: 12, unit: 'kg', iconType: 'newspaper' },
-  { id: 'item_cardboard', name: 'Cardboard', category: 'Paper', ratePerKg: 10, unit: 'kg', iconType: 'cardboard' },
-  { id: 'item_pet_bottles', name: 'Plastic Bottles (PET)', category: 'Plastic', ratePerKg: 18, unit: 'kg', iconType: 'pet_bottles' },
-  { id: 'item_mixed_plastic', name: 'Mixed Plastic', category: 'Plastic', ratePerKg: 12, unit: 'kg', iconType: 'mixed_plastic' },
-  { id: 'item_iron', name: 'Iron', category: 'Metal', ratePerKg: 28, unit: 'kg', iconType: 'iron' },
-  { id: 'item_aluminium', name: 'Aluminium', category: 'Metal', ratePerKg: 120, unit: 'kg', iconType: 'aluminium' },
-  { id: 'item_ewaste', name: 'E-Waste (Mixed)', category: 'E-Waste', ratePerKg: 45, unit: 'kg', iconType: 'ewaste' },
-  { id: 'item_copper', name: 'Copper Wire', category: 'Metal', ratePerKg: 420, unit: 'kg', iconType: 'copper' },
-  { id: 'item_brass', name: 'Brass', category: 'Metal', ratePerKg: 310, unit: 'kg', iconType: 'brass' },
-  { id: 'item_tyres', name: 'Old Tyres', category: 'Rubber', ratePerKg: 8, unit: 'kg', iconType: 'tyres' },
-];
-
-const INITIAL_COLLECTED: CollectedScrapItem[] = [
-  { id: 'item_cardboard', name: 'Cardboard', category: 'Paper', ratePerKg: 10, weightKg: 15, lineTotalRupees: 150 },
-  { id: 'item_pet_bottles', name: 'Plastic Bottles (PET)', category: 'Plastic', ratePerKg: 18, weightKg: 8, lineTotalRupees: 144 },
-  { id: 'item_iron', name: 'Iron', category: 'Metal', ratePerKg: 28, weightKg: 5, lineTotalRupees: 140 },
-];
 
 const EmployeeContext = createContext<EmployeeContextType | undefined>(undefined);
 
 export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [profile] = useState<EmployeeProfile>(INITIAL_PROFILE);
-  const [shiftStatus, setShiftStatus] = useState<ShiftStatus>('ON_PICKUP'); // Default to State 1 from Image 2
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isLoadingAuth, setIsLoadingAuth] = useState<boolean>(true);
+
+  const [profile, setProfile] = useState<EmployeeProfile>(DEFAULT_PROFILE);
+  const [shiftStatus, setShiftStatus] = useState<ShiftStatus>('AVAILABLE');
   const [activeTab, setActiveTab] = useState<AppTab>('HOME');
-  const [routeStops, setRouteStops] = useState<RouteStop[]>(INITIAL_STOPS);
-  const [activePickup, setActivePickup] = useState<RouteStop | null>(INITIAL_STOPS[1]); // AKP-10245
-  const [cashFloat, setCashFloat] = useState<CashFloatWallet>(INITIAL_WALLET);
-  const [routeExpenses, setRouteExpenses] = useState<RouteExpense[]>(INITIAL_EXPENSES);
+  const [routeStops, setRouteStops] = useState<RouteStop[]>([]);
+  const [activePickup, setActivePickup] = useState<RouteStop | null>(null);
+  const [cashFloat, setCashFloat] = useState<CashFloatWallet>(DEFAULT_WALLET);
+  const [routeExpenses, setRouteExpenses] = useState<RouteExpense[]>([]);
   const [isShiftClosed, setIsShiftClosed] = useState<boolean>(false);
+
+  // App Update Sentinel State
+  const [hasUpdateAvailable, setHasUpdateAvailable] = useState<boolean>(false);
+  const [isReleaseNotesOpen, setIsReleaseNotesOpen] = useState<boolean>(false);
+
+  // Live Rapido Navigation & Dispatch Alert States
+  const [isIncomingAlertOpen, setIsIncomingAlertOpen] = useState<boolean>(false);
+  const [incomingOrder, setIncomingOrder] = useState<any>(null);
+  const [isLiveNavOpen, setIsLiveNavOpen] = useState<boolean>(false);
+  const [activeNavStop, setActiveNavStop] = useState<RouteStop | null>(null);
+
+  // Doorstep Collection Flow State (Step 1 -> Step 19)
+  const [pickupStep, setPickupStep] = useState<PickupStep>('IDLE');
+  const [isFlashlightOn, setIsFlashlightOn] = useState<boolean>(false);
+
+  // Dynamic Scrap Catalog & Cart Management State
+  const [catalogItems, setCatalogItems] = useState<ScrapCatalogItem[]>([]);
+  const [selectedCatalogIds, setSelectedCatalogIds] = useState<string[]>([]);
+  const [collectedItems, setCollectedItems] = useState<CollectedScrapItem[]>([]);
+  const [isOfflineCached, setIsOfflineCached] = useState<boolean>(false);
+
+  const refreshDashboardData = useCallback(async () => {
+    try {
+      // 1. Fetch live employee profile
+      const prof = await fieldOpsApi.fetchProfile();
+      if (prof) {
+        setProfile((prev) => ({
+          ...prev,
+          id: prof._id || prof.id || prev.id,
+          employeeCode: prof.employeeCode || prev.employeeCode,
+          name: prof.fullName || prev.name,
+          vehicleReg: prof.vehicleNumber || prev.vehicleReg,
+          vehicleName: prof.vehicleType || prev.vehicleName,
+          kycVerified: prof.status === 'APPROVED',
+        }));
+      }
+
+      // 2. Fetch assigned pickups for today
+      const pickups = await fieldOpsApi.fetchAssignedPickups();
+      if (Array.isArray(pickups)) {
+        const stops: RouteStop[] = pickups.map((p: any, idx: number) => {
+          let sStatus: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' = 'SCHEDULED';
+          if (p.status === 'COMPLETED' || p.status === 'SETTLED') sStatus = 'COMPLETED';
+          else if (
+            p.status === 'ON_THE_WAY' ||
+            p.status === 'ARRIVED' ||
+            p.status === 'IN_PROGRESS' ||
+            p.status === 'VERIFIED'
+          ) {
+            sStatus = 'IN_PROGRESS';
+          }
+
+          return {
+            id: p._id || p.id || `stop_${idx}`,
+            stopNumber: idx + 1,
+            pickupCode: p.pickupCode || `AKP-${idx + 100}`,
+            customerName: p.addressSnapshot?.name || 'Doorstep Customer',
+            phone: p.addressSnapshot?.phone || '9848123001',
+            timeSlot: p.timeSlotSnapshot?.displayLabel || 'Scheduled Slot',
+            scheduledTime: p.timeSlotSnapshot?.startTime || '09:00 AM',
+            address: p.addressSnapshot?.line1 || 'Vijayawada Central',
+            locality: p.addressSnapshot?.city || 'Vijayawada',
+            landmark: p.addressSnapshot?.landmark || '',
+            estimatedWeightKg: p.estimatedWeightGrams ? Math.round(p.estimatedWeightGrams / 1000) : 25,
+            itemsCategoryHint: Array.isArray(p.categories)
+              ? p.categories.map((c: any) => c.name || c).join(', ')
+              : 'Scrap Materials',
+            status: sStatus,
+            finalWeightKg: p.totalWeightGrams ? p.totalWeightGrams / 1000 : undefined,
+            finalScrapValueRupees: p.finalScrapValuePaise ? p.finalScrapValuePaise / 100 : undefined,
+          };
+        });
+
+        setRouteStops(stops);
+        const inProgress = stops.find((s) => s.status === 'IN_PROGRESS');
+        if (inProgress) {
+          setActivePickup(inProgress);
+          setShiftStatus('ON_PICKUP');
+        } else if (stops.length > 0) {
+          setActivePickup(stops[0]);
+          setShiftStatus('AVAILABLE');
+        } else {
+          setActivePickup(null);
+          setShiftStatus('AVAILABLE');
+        }
+      }
+
+      // 3. Fetch live scrap catalog
+      const catData = await fieldOpsApi.fetchCatalog();
+      if (Array.isArray(catData) && catData.length > 0) {
+        const mappedCatalog: ScrapCatalogItem[] = catData.map((c: any) => {
+          const rateRupees = c.ratePerKgPaise
+            ? c.ratePerKgPaise / 100
+            : c.baseRatePaise
+            ? c.baseRatePaise / 100
+            : 20;
+
+          const n = (c.name || '').toLowerCase();
+          const iconType = n.includes('paper')
+            ? 'newspaper'
+            : n.includes('plastic') || n.includes('pet')
+            ? 'pet_bottles'
+            : n.includes('metal') || n.includes('iron')
+            ? 'iron'
+            : n.includes('copper')
+            ? 'copper'
+            : n.includes('brass')
+            ? 'brass'
+            : n.includes('waste')
+            ? 'ewaste'
+            : 'cardboard';
+
+          return {
+            id: c._id || c.id || c.code,
+            name: c.name,
+            category: c.parentCategory || 'All',
+            ratePerKg: rateRupees,
+            unit: 'kg',
+            iconType,
+          };
+        });
+        setCatalogItems(mappedCatalog);
+      }
+    } catch (err) {
+      console.warn('[EmployeeContext] Refresh failed:', err);
+    }
+  }, []);
+
+  // Check login state on initial mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const token = localStorage.getItem('aslikaata_emp_token');
+    if (token) {
+      setIsAuthenticated(true);
+      refreshDashboardData().finally(() => setIsLoadingAuth(false));
+    } else {
+      setIsAuthenticated(false);
+      setIsLoadingAuth(false);
+    }
+  }, [refreshDashboardData]);
+
+  const logout = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('aslikaata_emp_token');
+      localStorage.removeItem('aslikaata_emp_user');
+      localStorage.removeItem('aslikaata_employee_cart_cache');
+    }
+    setIsAuthenticated(false);
+    setRouteStops([]);
+    setActivePickup(null);
+    setCollectedItems([]);
+    setSelectedCatalogIds([]);
+    setRouteExpenses([]);
+  };
 
   const addRouteExpense = (item: { category: string; amount: number; notes: string; receiptAttached?: boolean }) => {
     const newExp: RouteExpense = {
@@ -336,57 +366,6 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setIsShiftClosed(true);
     setShiftStatus('COMPLETED');
   };
-
-  // App Update Sentinel State
-  const [hasUpdateAvailable, setHasUpdateAvailable] = useState<boolean>(true);
-  const [isReleaseNotesOpen, setIsReleaseNotesOpen] = useState<boolean>(false);
-
-  // Live Rapido Navigation & Dispatch Alert States
-  const [isIncomingAlertOpen, setIsIncomingAlertOpen] = useState<boolean>(false);
-  const [incomingOrder, setIncomingOrder] = useState<any>({
-    pickupCode: 'AKP-10255',
-    customerName: 'Balaji Fabrication Works',
-    phone: '9848110022',
-    address: 'Plot 42, Autonagar Industrial Area, Guntur',
-    locality: 'Autonagar, Guntur',
-    estimatedWeightKg: 180,
-    categoriesHint: 'Heavy Scrap Iron & Aluminium Section',
-    distanceKm: 3.2,
-    etaMinutes: 12,
-  });
-  const [isLiveNavOpen, setIsLiveNavOpen] = useState<boolean>(false);
-  const [activeNavStop, setActiveNavStop] = useState<RouteStop | null>(null);
-
-  // Doorstep Collection Flow State (Step 1 -> Step 19)
-  const [pickupStep, setPickupStep] = useState<PickupStep>('IDLE');
-  const [isFlashlightOn, setIsFlashlightOn] = useState<boolean>(false);
-
-  // Phase 4 Scrap Catalog & Cart Management State
-  const [catalogItems] = useState<ScrapCatalogItem[]>(INITIAL_CATALOG);
-  const [selectedCatalogIds, setSelectedCatalogIds] = useState<string[]>([
-    'item_cardboard',
-    'item_pet_bottles',
-    'item_iron',
-  ]);
-  const [collectedItems, setCollectedItems] = useState<CollectedScrapItem[]>(INITIAL_COLLECTED);
-  const [isOfflineCached, setIsOfflineCached] = useState<boolean>(false);
-
-  // Task 8.2: Offline Weight Caching - Rehydrate on initial mount
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      const cached = localStorage.getItem('aslikaata_employee_cart_cache');
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (parsed.collectedItems && parsed.collectedItems.length > 0) {
-          setCollectedItems(parsed.collectedItems);
-          setIsOfflineCached(true);
-        }
-      }
-    } catch (e) {
-      // safe fallback if storage unavailable
-    }
-  }, []);
 
   const toggleCatalogItemSelection = (id: string) => {
     setSelectedCatalogIds((prev) =>
@@ -451,7 +430,7 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     0
   );
 
-  // Task 8.2: Save cart items to localStorage on every change
+  // Offline Weight Caching
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
@@ -476,8 +455,8 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-        osc.frequency.setValueAtTime(880.0, ctx.currentTime + 0.15); // A5
+        osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+        osc.frequency.setValueAtTime(880.0, ctx.currentTime + 0.15);
         gain.gain.setValueAtTime(0.3, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
         osc.connect(gain);
@@ -485,9 +464,7 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         osc.start();
         osc.stop(ctx.currentTime + 0.5);
       }
-    } catch (e) {
-      // Audio context might be restricted before interaction
-    }
+    } catch (e) {}
   };
 
   const triggerVibration = (pattern = [300, 150, 300, 150, 500]) => {
@@ -512,36 +489,18 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setShiftStatus('ON_PICKUP');
   };
 
-  // Helper to test all 3 states shown in Image 2
   const simulateHomeState = (state: 'ON_PICKUP' | 'AVAILABLE' | 'COMPLETED') => {
     if (state === 'ON_PICKUP') {
       setShiftStatus('ON_PICKUP');
-      setRouteStops((prev) =>
-        prev.map((s, idx) => {
-          if (idx < 3) return { ...s, status: 'COMPLETED' };
-          if (idx === 3) return { ...s, status: 'IN_PROGRESS' };
-          return { ...s, status: 'SCHEDULED' };
-        })
-      );
-      setActivePickup(INITIAL_STOPS[1]);
     } else if (state === 'AVAILABLE') {
       setShiftStatus('AVAILABLE');
-      setRouteStops((prev) =>
-        prev.map((s, idx) => {
-          if (idx < 3) return { ...s, status: 'COMPLETED' };
-          return { ...s, status: 'SCHEDULED' };
-        })
-      );
-      setActivePickup(null);
     } else if (state === 'COMPLETED') {
       setShiftStatus('COMPLETED');
-      setRouteStops((prev) => prev.map((s) => ({ ...s, status: 'COMPLETED' })));
-      setActivePickup(null);
     }
   };
 
   const startActivePickupFlow = (pickupId: string) => {
-    const target = routeStops.find((s) => s.pickupCode === pickupId) || routeStops[1];
+    const target = routeStops.find((s) => s.pickupCode === pickupId) || routeStops[0] || null;
     setActivePickup(target);
     setShiftStatus('ON_PICKUP');
   };
@@ -549,6 +508,11 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   return (
     <EmployeeContext.Provider
       value={{
+        isAuthenticated,
+        setIsAuthenticated,
+        isLoadingAuth,
+        logout,
+        refreshDashboardData,
         profile,
         shiftStatus,
         setShiftStatus,
