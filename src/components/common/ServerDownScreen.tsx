@@ -72,7 +72,7 @@ export const ServerDownScreen: React.FC<ServerDownScreenProps> = ({
           Operations Server Offline
         </h2>
         <p className="text-sm text-emerald-100/80 leading-relaxed max-w-xs mb-4">
-          The central dispatch server is temporarily warming up or reconnecting. Your assigned routes and collected weights are cached locally.
+          The central dispatch server is unreachable. Reconnect before continuing pickup operations.
         </p>
 
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900/60 border border-emerald-500/25 text-emerald-300 text-xs font-medium backdrop-blur-sm">
@@ -111,7 +111,7 @@ export const ServerDownScreen: React.FC<ServerDownScreenProps> = ({
                 <span className="font-bold">Field Device Diagnostics</span>
               </div>
               <p className="truncate">Backend: {errorDetails}</p>
-              <p className="truncate">Local Cache: Available (Offline Safe)</p>
+              <p className="truncate">Offline completion: Disabled</p>
               <p className="text-[10px] text-slate-500">Checked: {new Date().toLocaleTimeString()}</p>
             </div>
           )}

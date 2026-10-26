@@ -32,7 +32,7 @@ export const AddScrapCatalogScreen: React.FC<AddScrapCatalogScreenProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
-  const categories = ['All', 'Paper', 'Plastic', 'Metal', 'E-Waste', 'Rubber', 'Others'];
+  const categories = ['All', ...Array.from(new Set(catalogItems.map((item) => item.category)))];
 
   const filteredItems = catalogItems.filter((item) => {
     if (selectedCategory !== 'All' && item.category !== selectedCategory) {
@@ -200,6 +200,11 @@ export const AddScrapCatalogScreen: React.FC<AddScrapCatalogScreenProps> = ({
           </h2>
 
           <div className="space-y-2">
+            {filteredItems.length === 0 && (
+              <div className="p-6 text-center text-xs text-slate-500 bg-white rounded-2xl border border-slate-200">
+                No catalog products are available for this category.
+              </div>
+            )}
             {filteredItems.map((item) => {
               const isSelected = selectedCatalogIds.includes(item.id);
               return (

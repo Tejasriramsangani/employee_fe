@@ -29,6 +29,7 @@ export const MyPickupsScreen: React.FC<MyPickupsScreenProps> = ({
 }) => {
   const {
     routeStops,
+    routeTitle,
     startLiveNavigation,
     setActivePickup,
     setPickupStep,
@@ -69,9 +70,7 @@ export const MyPickupsScreen: React.FC<MyPickupsScreenProps> = ({
   };
 
   const handleStartPickup = (stop: RouteStop) => {
-    setActivePickup(stop);
-    setShiftStatus('ON_PICKUP');
-    setPickupStep('STEP_1_SCAN_QR');
+    startLiveNavigation(stop);
   };
 
   return (
@@ -80,7 +79,7 @@ export const MyPickupsScreen: React.FC<MyPickupsScreenProps> = ({
       <div>
         <h1 className="text-lg font-black text-slate-900 tracking-tight">Today's Route Sequence</h1>
         <p className="text-xs text-slate-500 font-medium">
-          {routeStops.length} Total Pickups • Vijayawada Central Route
+          {routeStops.length} Total Pickups • {routeTitle}
         </p>
       </div>
 

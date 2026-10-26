@@ -48,29 +48,12 @@ export const IncomingPickupAlertModal: React.FC = () => {
     return () => clearInterval(interval);
   }, [isIncomingAlertOpen, setIsIncomingAlertOpen]);
 
-  if (!isIncomingAlertOpen) return null;
+  if (!isIncomingAlertOpen || !incomingOrder) return null;
 
   const handleAccept = () => {
     setIsIncomingAlertOpen(false);
-    // Find matching stop or construct one
-    const matchingStop =
-      routeStops.find((s) => s.pickupCode === incomingOrder.pickupCode) || {
-        id: 'stop_incoming',
-        stopNumber: 7,
-        pickupCode: incomingOrder.pickupCode,
-        customerName: incomingOrder.customerName,
-        phone: incomingOrder.phone,
-        timeSlot: 'Immediate Dispatch',
-        scheduledTime: 'Now',
-        address: incomingOrder.address,
-        locality: incomingOrder.locality,
-        landmark: 'Industrial Gate 1',
-        estimatedWeightKg: incomingOrder.estimatedWeightKg,
-        itemsCategoryHint: incomingOrder.categoriesHint,
-        status: 'IN_PROGRESS' as const,
-      };
-
-    startLiveNavigation(matchingStop);
+    const matchingStop = routeStops.find((s) => s.pickupCode === incomingOrder.pickupCode);
+    if (matchingStop) startLiveNavigation(matchingStop);
   };
 
   const timerPercentage = (secondsRemaining / 30) * 100;

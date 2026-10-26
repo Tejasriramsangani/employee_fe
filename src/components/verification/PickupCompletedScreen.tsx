@@ -11,8 +11,7 @@ import {
   Receipt,
   Sparkles,
 } from 'lucide-react';
-import { useEmployee, RouteStop } from '../../context/EmployeeContext';
-import { fieldOpsApi } from '../../services/api';
+import { useEmployee } from '../../context/EmployeeContext';
 
 interface PickupCompletedScreenProps {
   onDone?: () => void;
@@ -27,45 +26,30 @@ export const PickupCompletedScreen: React.FC<PickupCompletedScreenProps> = ({ on
     routeStops,
     totalCollectedWeightKg,
     totalCollectedValueRupees,
+    paymentMethod,
+    lastCompletion,
+    refreshDashboardData,
   } = useEmployee();
 
-  const stop: RouteStop = activePickup || {
-    id: 'stop_02',
-    stopNumber: 2,
-    pickupCode: 'AKP-10245',
-    customerName: 'Vinay Palakonda',
-    phone: '9908123456',
-    timeSlot: '11:00 AM - 01:00 PM',
-    scheduledTime: '11:00 AM',
-    address: 'Door 14-8-2, Behind Rythu Bazar, Madhura Nagar',
-    locality: 'Madhura Nagar, Vijayawada',
-    landmark: 'Near Water Tank',
-    estimatedWeightKg: 28,
-    itemsCategoryHint: 'Cardboard, PET Bottles, Iron',
-    status: 'IN_PROGRESS',
-  };
+  const stop = activePickup;
 
   const handleDone = async () => {
-    try {
-      await fieldOpsApi.completePickup({
-        pickupId: stop.id,
-        paymentMethod: 'CASH',
-        totalWeightKg: finalWeight,
-        finalScrapValueRupees: finalValue,
-      });
-    } catch (e) {}
-
-    // Mark active stop as completed in routeStops
-    stop.status = 'COMPLETED';
+    await refreshDashboardData();
     setShiftStatus('AVAILABLE');
     setPickupStep('IDLE');
+    setActivePickup(null);
     if (onDone) {
       onDone();
     }
   };
 
-  const finalWeight = totalCollectedWeightKg > 0 ? totalCollectedWeightKg : 28;
-  const finalValue = totalCollectedValueRupees > 0 ? totalCollectedValueRupees : 804;
+  if (!stop || !lastCompletion) {
+    return <div className="min-h-[720px] flex items-center justify-center">Completion details are unavailable.</div>;
+  }
+
+  const totals = lastCompletion.pickup?.totals || {};
+  const finalWeight = totals.netWeightGrams != null ? totals.netWeightGrams / 1000 : totalCollectedWeightKg;
+  const finalValue = totals.totalAmount != null ? totals.totalAmount / 100 : totalCollectedValueRupees;
 
   return (
     <div className="relative min-h-[720px] flex flex-col justify-between bg-[#F8FAFC] text-slate-900 select-none pb-24">
@@ -224,7 +208,7 @@ export const PickupCompletedScreen: React.FC<PickupCompletedScreenProps> = ({ on
                 <CreditCard className="w-3.5 h-3.5 text-emerald-600" /> Settlement Method
               </span>
               <div className="flex items-center gap-1.5">
-                <span className="font-bold text-slate-900">Cash</span>
+                <span className="font-bold text-slate-900">{paymentMethod === 'CASH' ? 'Cash' : 'UPI'}</span>
                 <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-[#0A3D2B] text-[10px] font-black uppercase">
                   Received
                 </span>
@@ -239,7 +223,7 @@ export const PickupCompletedScreen: React.FC<PickupCompletedScreenProps> = ({ on
                 <Receipt className="w-3.5 h-3.5 text-emerald-600" /> Invoice
               </span>
               <span className="font-mono font-semibold text-slate-500 text-[11px]">
-                INV-20261004-0012
+                {lastCompletion.invoice?.invoiceNumber || '—'}
               </span>
             </div>
           </div>

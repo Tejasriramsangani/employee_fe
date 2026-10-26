@@ -1,47 +1,19 @@
-/**
- * ASLI KAATA Employee Companion - Backend Integration Service
- * Connects to NestJS Backend API at http://localhost:4000/api/v1
- * Provides offline-resilient fallbacks and real-time server downtime detection.
- */
-
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
-export interface VerifyQrPayload {
-  pickupId: string;
-  qrToken: string;
-  collectorLatitude?: number;
-  collectorLongitude?: number;
-}
+export const normalizeMobile = (mobile: string) => mobile.replace(/\D/g, '').slice(-10);
 
-export interface RecordItemsPayload {
-  pickupId: string;
-  items: Array<{
-    name: string;
-    category: string;
-    weightKg: number;
-    ratePerKg: number;
-    lineTotalRupees: number;
-  }>;
-}
-
-export interface VerifyOtpPayload {
-  pickupId: string;
-  otp: string;
-}
-
-export interface CompletePickupPayload {
-  pickupId: string;
-  paymentMethod: 'CASH' | 'UPI';
-  totalWeightKg: number;
-  finalScrapValueRupees: number;
+export interface ApiResult<T> {
+  success: boolean;
+  data?: T;
+  message?: string;
 }
 
 type ServerStatusListener = (isDown: boolean, details?: string) => void;
 
 class FieldOpsApiService {
-  private statusListeners: Set<ServerStatusListener> = new Set();
-  public isServerDown: boolean = false;
-  public lastErrorDetails: string = '';
+  private statusListeners = new Set<ServerStatusListener>();
+  public isServerDown = false;
+  public lastErrorDetails = '';
 
   public onServerStatusChange(listener: ServerStatusListener) {
     this.statusListeners.add(listener);
@@ -53,28 +25,7 @@ class FieldOpsApiService {
   private notifyStatus(isDown: boolean, details?: string) {
     this.isServerDown = isDown;
     if (details) this.lastErrorDetails = details;
-    this.statusListeners.forEach((fn) => fn(isDown, details));
-  }
-
-  public async checkHealth(): Promise<boolean> {
-    const rootUrl = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
-    try {
-      const res = await fetch(`${rootUrl}/health`, { method: 'GET', cache: 'no-store' });
-      if (res.ok) {
-        this.notifyStatus(false);
-        return true;
-      }
-    } catch {
-      try {
-        const fallback = await fetch(`${API_BASE_URL}/catalog/rates`, { method: 'GET', cache: 'no-store' });
-        if (fallback.ok) {
-          this.notifyStatus(false);
-          return true;
-        }
-      } catch {}
-    }
-    this.notifyStatus(true, 'Operations server unreachable');
-    return false;
+    this.statusListeners.forEach((listener) => listener(isDown, details));
   }
 
   private getHeaders(): HeadersInit {
@@ -85,193 +36,221 @@ class FieldOpsApiService {
     };
   }
 
-  async sendOtp(mobile: string): Promise<{ success: boolean; message: string }> {
+  private clearAuth() {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem('aslikaata_emp_token');
+    localStorage.removeItem('aslikaata_emp_refresh_token');
+    localStorage.removeItem('aslikaata_emp_user');
+  }
+
+  private async parse<T>(response: Response): Promise<{ data?: T; message?: string }> {
+    let json: any;
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/otp/send`, {
+      json = await response.json();
+    } catch {
+      return { message: `Request failed with HTTP ${response.status}` };
+    }
+    return {
+      data: (json && Object.prototype.hasOwnProperty.call(json, 'data') ? json.data : json) as T,
+      message:
+        json?.error?.message ||
+        json?.message ||
+        (typeof json?.error === 'string' ? json.error : undefined),
+    };
+  }
+
+  private async request<T>(
+    path: string,
+    init: RequestInit = {},
+    allowRefresh = true,
+  ): Promise<ApiResult<T>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}${path}`, {
+        ...init,
+        headers: { ...this.getHeaders(), ...(init.headers || {}) },
+        cache: init.cache || 'no-store',
+      });
+      if (response.status === 401 && allowRefresh) {
+        const refreshed = await this.refreshToken();
+        if (refreshed.success) return this.request<T>(path, init, false);
+        this.clearAuth();
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('aslikaata:auth-expired'));
+        }
+      }
+      const parsed = await this.parse<T>(response);
+      if (!response.ok) {
+        if (response.status >= 500) {
+          this.notifyStatus(true, parsed.message || `HTTP ${response.status}`);
+        }
+        return {
+          success: false,
+          message: parsed.message || `Request failed with HTTP ${response.status}`,
+        };
+      }
+      this.notifyStatus(false);
+      return { success: true, data: parsed.data };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Server unreachable';
+      this.notifyStatus(true, message);
+      return { success: false, message };
+    }
+  }
+
+  public async checkHealth(): Promise<boolean> {
+    const rootUrl = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
+    for (const url of [`${rootUrl}/health`, `${API_BASE_URL}/catalog`]) {
+      try {
+        const response = await fetch(url, { method: 'GET', cache: 'no-store' });
+        if (response.ok) {
+          this.notifyStatus(false);
+          return true;
+        }
+      } catch {
+        // Continue to the catalog fallback.
+      }
+    }
+    this.notifyStatus(true, 'Operations server unreachable');
+    return false;
+  }
+
+  sendOtp(mobile: string) {
+    return this.request<{ message: string; cooldownSeconds: number }>(
+      '/auth/otp/send',
+      {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mobile, purpose: 'LOGIN' }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        if (this.isServerDown) this.notifyStatus(false);
-        return { success: true, message: data.message || 'OTP sent successfully' };
-      }
-      return { success: false, message: data.message || 'Failed to send OTP' };
-    } catch (err: any) {
-      this.notifyStatus(true, err.message);
-      return { success: false, message: 'Server unreachable' };
-    }
+        body: JSON.stringify({ mobile: normalizeMobile(mobile), purpose: 'LOGIN' }),
+      },
+      false,
+    );
   }
 
-  async verifyOtp(mobile: string, code: string): Promise<{ success: boolean; data?: any; message?: string }> {
-    try {
-      const res = await fetch(`${API_BASE_URL}/auth/otp/verify`, {
+  verifyOtp(mobile: string, code: string) {
+    return this.request<{ accessToken: string; refreshToken: string; user: any }>(
+      '/auth/otp/verify',
+      {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mobile, code, requestedRole: 'EMPLOYEE', purpose: 'LOGIN' }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        if (this.isServerDown) this.notifyStatus(false);
-        return { success: true, data };
-      }
-      return { success: false, message: data.message || 'Invalid or expired OTP' };
-    } catch (err: any) {
-      this.notifyStatus(true, err.message);
-      return { success: false, message: 'Connection to identity server failed' };
-    }
-  }
-
-  async fetchProfile(): Promise<any> {
-    try {
-      const res = await fetch(`${API_BASE_URL}/employee/profile`, {
-        method: 'GET',
-        headers: this.getHeaders(),
-      });
-      if (res.ok) {
-        if (this.isServerDown) this.notifyStatus(false);
-        return await res.json();
-      }
-    } catch (err: any) {
-      console.warn('[FieldOpsApi] Fetch profile failed:', err);
-    }
-    return null;
-  }
-
-  async fetchCatalog(): Promise<any[]> {
-    try {
-      const res = await fetch(`${API_BASE_URL}/catalog`, {
-        method: 'GET',
-        headers: this.getHeaders(),
-      });
-      if (res.ok) {
-        if (this.isServerDown) this.notifyStatus(false);
-        return await res.json();
-      }
-    } catch (err: any) {
-      console.warn('[FieldOpsApi] Fetch catalog failed:', err);
-    }
-    return [];
-  }
-
-  /**
-   * Fetch today's assigned route stops for the logged-in collector
-   */
-  async fetchAssignedPickups(): Promise<any> {
-    try {
-      const res = await fetch(`${API_BASE_URL}/employee/pickups`, {
-        method: 'GET',
-        headers: this.getHeaders(),
-      });
-      if (res.ok) {
-        if (this.isServerDown) this.notifyStatus(false);
-        return await res.json();
-      }
-      if (res.status >= 502 && res.status <= 504) {
-        this.notifyStatus(true, `HTTP ${res.status}: Server Gateway Maintenance`);
-      }
-    } catch (err: any) {
-      console.warn('[FieldOpsApi] Live backend unreachable, operating in resilient offline mode:', err);
-      this.notifyStatus(true, err.message || 'Connection to dispatch engine refused');
-    }
-    return null;
-  }
-
-  /**
-   * Step 1: Validate Customer Doorstep QR & Geofence Coordinates
-   */
-  async verifyQr(payload: VerifyQrPayload): Promise<{ success: boolean; message: string }> {
-    try {
-      const res = await fetch(`${API_BASE_URL}/employee/pickups/${payload.pickupId}/verify-qr`, {
-        method: 'POST',
-        headers: this.getHeaders(),
         body: JSON.stringify({
-          qrToken: payload.qrToken,
-          latitude: payload.collectorLatitude || 16.5062,
-          longitude: payload.collectorLongitude || 80.648,
+          mobile: normalizeMobile(mobile),
+          code,
+          purpose: 'LOGIN',
+          requestedRole: 'EMPLOYEE',
         }),
-      });
-      if (res.ok) {
-        if (this.isServerDown) this.notifyStatus(false);
-        const data = await res.json();
-        return { success: true, message: data.message || 'QR Verified Successfully' };
-      }
-      if (res.status >= 502 && res.status <= 504) {
-        this.notifyStatus(true, `HTTP ${res.status}`);
-      }
-    } catch (err: any) {
-      console.warn('[FieldOpsApi] Backend verify-qr offline fallback triggered');
-      this.notifyStatus(true, err.message);
-    }
-    // Resilient offline validation fallback
-    return { success: true, message: 'Verified locally (Offline Cached)' };
+      },
+      false,
+    );
   }
 
-  /**
-   * Step 6: Record Weighed Scrap Items
-   */
-  async recordWeighedItems(payload: RecordItemsPayload): Promise<{ success: boolean; totalValue: number }> {
-    try {
-      const res = await fetch(`${API_BASE_URL}/employee/pickups/${payload.pickupId}/items`, {
-        method: 'POST',
-        headers: this.getHeaders(),
-        body: JSON.stringify({ items: payload.items }),
-      });
-      if (res.ok) {
-        if (this.isServerDown) this.notifyStatus(false);
-        const data = await res.json();
-        return { success: true, totalValue: data.totalValue };
-      }
-    } catch (err: any) {
-      console.warn('[FieldOpsApi] Backend record-items offline fallback triggered');
-      this.notifyStatus(true, err.message);
+  async refreshToken() {
+    const refreshToken =
+      typeof window !== 'undefined' ? localStorage.getItem('aslikaata_emp_refresh_token') : null;
+    if (!refreshToken) return { success: false, message: 'No refresh token' } as ApiResult<any>;
+    const result = await this.request<{ accessToken: string; refreshToken: string }>(
+      '/auth/refresh',
+      { method: 'POST', body: JSON.stringify({ refreshToken }) },
+      false,
+    );
+    if (result.success && result.data && typeof window !== 'undefined') {
+      localStorage.setItem('aslikaata_emp_token', result.data.accessToken);
+      localStorage.setItem('aslikaata_emp_refresh_token', result.data.refreshToken);
+    } else {
+      this.clearAuth();
     }
-    const computedTotal = payload.items.reduce((acc, curr) => acc + curr.lineTotalRupees, 0);
-    return { success: true, totalValue: computedTotal };
+    return result;
   }
 
-  /**
-   * Step 15: Verify Doorstep Customer Completion OTP
-   */
-  async verifyClosingOtp(payload: VerifyOtpPayload): Promise<{ success: boolean; invoiceId: string }> {
-    try {
-      const res = await fetch(`${API_BASE_URL}/employee/pickups/${payload.pickupId}/verify-closing-otp`, {
-        method: 'POST',
-        headers: this.getHeaders(),
-        body: JSON.stringify({ otp: payload.otp }),
-      });
-      if (res.ok) {
-        if (this.isServerDown) this.notifyStatus(false);
-        const data = await res.json();
-        return { success: true, invoiceId: data.invoiceId || 'INV-20261004-0012' };
-      }
-    } catch (err: any) {
-      console.warn('[FieldOpsApi] Backend verify-closing-otp offline fallback triggered');
-      this.notifyStatus(true, err.message);
-    }
-    return { success: true, invoiceId: 'INV-20261004-0012' };
+  async fetchProfile() {
+    const result = await this.request<any>('/employee/profile');
+    return result.success ? result.data ?? null : null;
   }
 
-  /**
-   * Step 19: Complete Pickup & Final Settlement
-   */
-  async completePickup(payload: CompletePickupPayload): Promise<{ success: boolean }> {
-    try {
-      const res = await fetch(`${API_BASE_URL}/employee/pickups/${payload.pickupId}/complete`, {
-        method: 'POST',
-        headers: this.getHeaders(),
-        body: JSON.stringify(payload),
-      });
-      if (res.ok) {
-        if (this.isServerDown) this.notifyStatus(false);
-        return { success: true };
-      }
-    } catch (err: any) {
-      console.warn('[FieldOpsApi] Backend complete-pickup offline fallback triggered');
-      this.notifyStatus(true, err.message);
-    }
-    return { success: true };
+  async fetchTodayRoute() {
+    const result = await this.request<any>('/employee/route/today');
+    return result.success ? result.data ?? null : null;
+  }
+
+  async fetchAssignedPickups() {
+    const result = await this.request<any[]>('/employee/pickups');
+    return result.success ? result.data ?? [] : [];
+  }
+
+  async fetchCatalog() {
+    const result = await this.request<any[]>('/catalog');
+    return result.success ? result.data ?? [] : [];
+  }
+
+  onTheWay(pickupId: string) {
+    return this.request<any>(`/employee/pickups/${pickupId}/on-the-way`, { method: 'POST' });
+  }
+
+  arrived(pickupId: string) {
+    return this.request<any>(`/employee/pickups/${pickupId}/arrived`, { method: 'POST' });
+  }
+
+  verifyQr(pickupId: string, qrToken: string) {
+    return this.request<any>(`/employee/pickups/${pickupId}/verify-qr`, {
+      method: 'POST',
+      body: JSON.stringify({ qrToken }),
+    });
+  }
+
+  startPickup(pickupId: string) {
+    return this.request<any>(`/employee/pickups/${pickupId}/start`, { method: 'POST' });
+  }
+
+  recordItems(
+    pickupId: string,
+    items: Array<{
+      productId: string;
+      weightKg: number;
+      wastageKg?: number;
+      wastageReason?: string;
+    }>,
+  ) {
+    return this.request<any>(`/employee/pickups/${pickupId}/items`, {
+      method: 'POST',
+      body: JSON.stringify({
+        items: items.map((item) => ({
+          productId: item.productId,
+          grossWeightGrams: Math.round(item.weightKg * 1000),
+          wastageGrams: Math.round((item.wastageKg || 0) * 1000),
+          ...(item.wastageReason ? { wastageReason: item.wastageReason } : {}),
+        })),
+      }),
+    });
+  }
+
+  getPickup(pickupId: string) {
+    return this.request<any>(`/pickups/${pickupId}`);
+  }
+
+  settlePickup(pickupId: string, type: 'CASH' | 'UPI') {
+    return this.request<any>(`/employee/pickups/${pickupId}/settle`, {
+      method: 'POST',
+      body: JSON.stringify({ type, idempotencyKey: crypto.randomUUID() }),
+    });
+  }
+
+  verifyClosingOtp(pickupId: string, code: string) {
+    return this.request<{ pickup: any; invoice: any }>(
+      `/employee/pickups/${pickupId}/verify-closing-otp`,
+      { method: 'POST', body: JSON.stringify({ code }) },
+    );
+  }
+
+  reportLocation(
+    pickupId: string,
+    location: {
+      latitude: number;
+      longitude: number;
+      speed?: number | null;
+      heading?: number | null;
+    },
+  ) {
+    return this.request<any>(`/employee/pickups/${pickupId}/location`, {
+      method: 'POST',
+      body: JSON.stringify(location),
+    });
   }
 }
 

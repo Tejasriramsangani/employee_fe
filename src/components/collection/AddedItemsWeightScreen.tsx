@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ChevronLeft,
   X,
@@ -31,15 +31,31 @@ export const AddedItemsWeightScreen: React.FC<AddedItemsWeightScreenProps> = ({
     totalCollectedWeightKg,
     totalCollectedValueRupees,
     setPickupStep,
+    activePickup,
   } = useEmployee();
+  const [submitError, setSubmitError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleCheckout = async () => {
-    try {
-      await fieldOpsApi.recordWeighedItems({
-        pickupId: 'stop_02',
-        items: collectedItems,
-      });
-    } catch (e) {}
+    if (!activePickup) {
+      setSubmitError('No active pickup selected.');
+      return;
+    }
+    if (collectedItems.some((item) => item.weightKg <= 0)) {
+      setSubmitError('Enter a weight greater than zero for every item.');
+      return;
+    }
+    setIsSubmitting(true);
+    setSubmitError('');
+    const result = await fieldOpsApi.recordItems(
+      activePickup.id,
+      collectedItems.map((item) => ({ productId: item.id, weightKg: item.weightKg })),
+    );
+    setIsSubmitting(false);
+    if (!result.success) {
+      setSubmitError(result.message || 'Failed to record items.');
+      return;
+    }
     if (onCheckoutOverview) {
       onCheckoutOverview();
     } else {
@@ -190,6 +206,7 @@ export const AddedItemsWeightScreen: React.FC<AddedItemsWeightScreenProps> = ({
 
       {/* 4. Sticky Bottom Bar: Total Weight, Total Value & Checkout Overview Button */}
       <div className="fixed sm:absolute bottom-0 inset-x-0 p-4 bg-white/95 backdrop-blur-md border-t border-slate-200 z-40 space-y-3 shadow-xl">
+        {submitError && <p className="text-xs text-rose-600 font-semibold">{submitError}</p>}
         {/* Metrics Row matching Image 4 */}
         <div className="grid grid-cols-2 gap-3">
           <div className="p-2.5 rounded-xl bg-emerald-50/80 border border-emerald-100 flex items-center gap-2">
@@ -221,10 +238,10 @@ export const AddedItemsWeightScreen: React.FC<AddedItemsWeightScreenProps> = ({
         <button
           type="button"
           onClick={handleCheckout}
-          disabled={collectedItems.length === 0}
+          disabled={collectedItems.length === 0 || isSubmitting}
           className="w-full py-3.5 px-6 rounded-2xl bg-[#0A3D2B] hover:bg-[#0E4D36] disabled:bg-slate-300 text-white font-black text-xs tracking-wide shadow-lg shadow-emerald-950/20 flex items-center justify-center gap-2 cursor-pointer transition active:scale-[0.99]"
         >
-          <span>Checkout Overview</span>
+          <span>{isSubmitting ? 'Saving Items…' : 'Checkout Overview'}</span>
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>

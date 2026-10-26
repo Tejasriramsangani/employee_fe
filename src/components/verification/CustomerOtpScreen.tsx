@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   ChevronLeft,
   CheckCircle2,
@@ -11,7 +11,7 @@ import {
   ShieldCheck,
   RefreshCw,
 } from 'lucide-react';
-import { useEmployee, RouteStop } from '../../context/EmployeeContext';
+import { useEmployee } from '../../context/EmployeeContext';
 import { fieldOpsApi } from '../../services/api';
 
 interface CustomerOtpScreenProps {
@@ -28,35 +28,15 @@ export const CustomerOtpScreen: React.FC<CustomerOtpScreenProps> = ({
     totalCollectedValueRupees,
     setPickupStep,
     triggerVibration,
+    setLastCompletion,
   } = useEmployee();
 
-  const stop: RouteStop = activePickup || {
-    id: 'stop_02',
-    stopNumber: 2,
-    pickupCode: 'AKP-10245',
-    customerName: 'Vinay Palakonda',
-    phone: '9908123456',
-    timeSlot: '11:00 AM - 01:00 PM',
-    scheduledTime: '11:00 AM',
-    address: 'Door 14-8-2, Behind Rythu Bazar, Madhura Nagar',
-    locality: 'Madhura Nagar, Vijayawada',
-    landmark: 'Near Water Tank',
-    estimatedWeightKg: 28,
-    itemsCategoryHint: 'Cardboard, PET Bottles, Iron',
-    status: 'IN_PROGRESS',
-  };
+  const stop = activePickup;
 
-  // Pre-filled with the exact test digits shown in Image 1: [2, 7, 3, 9, 1, 6]
-  const [otpDigits, setOtpDigits] = useState<string[]>(['2', '7', '3', '9', '1', '6']);
-  const [resendSeconds, setResendSeconds] = useState<number>(28);
+  const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
+  const [verifyError, setVerifyError] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setResendSeconds((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   const handleDigitChange = (index: number, value: string) => {
     if (!/^\d*$/.test(value)) return;
@@ -77,13 +57,20 @@ export const CustomerOtpScreen: React.FC<CustomerOtpScreenProps> = ({
   };
 
   const handleVerifyOtp = async () => {
+    if (!stop || otpDigits.some((digit) => !digit)) {
+      setVerifyError('Enter the complete 6-digit OTP.');
+      return;
+    }
     triggerVibration([150, 80, 150]);
-    try {
-      await fieldOpsApi.verifyClosingOtp({
-        pickupId: stop.id,
-        otp: otpDigits.join(''),
-      });
-    } catch (e) {}
+    setIsVerifying(true);
+    setVerifyError('');
+    const result = await fieldOpsApi.verifyClosingOtp(stop.id, otpDigits.join(''));
+    setIsVerifying(false);
+    if (!result.success || !result.data) {
+      setVerifyError(result.message || 'OTP verification failed.');
+      return;
+    }
+    setLastCompletion(result.data);
     if (onVerifySuccess) {
       onVerifySuccess();
     } else {
@@ -99,7 +86,11 @@ export const CustomerOtpScreen: React.FC<CustomerOtpScreenProps> = ({
     }
   };
 
-  const finalValue = totalCollectedValueRupees > 0 ? totalCollectedValueRupees : 804;
+  if (!stop) {
+    return <div className="min-h-[720px] flex items-center justify-center">No active pickup selected.</div>;
+  }
+
+  const finalValue = totalCollectedValueRupees;
 
   return (
     <div className="relative min-h-[720px] flex flex-col justify-between bg-[#F8FAFC] text-slate-900 select-none pb-28">
@@ -126,7 +117,7 @@ export const CustomerOtpScreen: React.FC<CustomerOtpScreenProps> = ({
           </div>
           <div>
             <h2 className="font-bold text-xs text-slate-900">{stop.customerName}</h2>
-            <span className="text-[11px] text-slate-400 font-mono">Customer ID: CUS-2894</span>
+            <span className="text-[11px] text-slate-400 font-mono">Customer ID: {stop.customerId}</span>
           </div>
         </div>
 
@@ -145,6 +136,7 @@ export const CustomerOtpScreen: React.FC<CustomerOtpScreenProps> = ({
 
         {/* 4. 6-Digit OTP Inputs (Matches Image 1: [2, 7, 3, 9, 1, 6]) */}
         <div className="space-y-2 pt-2">
+          {verifyError && <p className="text-xs text-rose-600 text-center font-semibold">{verifyError}</p>}
           <div className="flex items-center justify-center gap-2">
             {otpDigits.map((digit, idx) => (
               <input
@@ -162,22 +154,8 @@ export const CustomerOtpScreen: React.FC<CustomerOtpScreenProps> = ({
             ))}
           </div>
 
-          {/* Resend Countdown */}
           <div className="text-center text-xs text-slate-500 pt-1">
-            Didn't receive OTP?{' '}
-            {resendSeconds > 0 ? (
-              <span className="font-bold text-emerald-800">
-                Resend OTP (00:{resendSeconds < 10 ? `0${resendSeconds}` : resendSeconds})
-              </span>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setResendSeconds(30)}
-                className="font-bold text-emerald-800 underline cursor-pointer"
-              >
-                Resend OTP Now
-              </button>
-            )}
+            Didn&apos;t receive it? Ask the customer to resend from their app.
           </div>
         </div>
 
@@ -217,9 +195,10 @@ export const CustomerOtpScreen: React.FC<CustomerOtpScreenProps> = ({
         <button
           type="button"
           onClick={handleVerifyOtp}
+          disabled={isVerifying || otpDigits.some((digit) => !digit)}
           className="w-full py-3.5 px-6 rounded-2xl bg-[#0A3D2B] hover:bg-[#0E4D36] text-white font-black text-xs tracking-wide shadow-lg shadow-emerald-950/20 flex items-center justify-center gap-2 cursor-pointer transition active:scale-[0.99]"
         >
-          <span>Verify OTP</span>
+          <span>{isVerifying ? 'Verifying…' : 'Verify OTP'}</span>
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>

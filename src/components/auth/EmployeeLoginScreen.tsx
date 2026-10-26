@@ -70,18 +70,14 @@ export const EmployeeLoginScreen: React.FC<EmployeeLoginScreenProps> = ({ onLogi
     setIsLoading(true);
     setErrorMessage(null);
 
-    const formattedMobile = cleanMobile.startsWith('91') && cleanMobile.length === 12
-      ? `+${cleanMobile}`
-      : `+91${cleanMobile.slice(-10)}`;
-
-    const res = await fieldOpsApi.sendOtp(formattedMobile);
+    const res = await fieldOpsApi.sendOtp(cleanMobile.slice(-10));
     setIsLoading(false);
 
     if (res.success) {
       setStep('OTP');
       setCooldown(60);
     } else {
-      setErrorMessage(res.message);
+      setErrorMessage(res.message || 'Failed to send OTP');
     }
   };
 
@@ -117,17 +113,14 @@ export const EmployeeLoginScreen: React.FC<EmployeeLoginScreenProps> = ({ onLogi
     setErrorMessage(null);
 
     const cleanMobile = mobile.replace(/\D/g, '');
-    const formattedMobile = cleanMobile.startsWith('91') && cleanMobile.length === 12
-      ? `+${cleanMobile}`
-      : `+91${cleanMobile.slice(-10)}`;
-
-    const res = await fieldOpsApi.verifyOtp(formattedMobile, fullCode);
+    const res = await fieldOpsApi.verifyOtp(cleanMobile.slice(-10), fullCode);
     setIsLoading(false);
 
     if (res.success && res.data) {
       const token = res.data.accessToken;
       if (typeof window !== 'undefined') {
         localStorage.setItem('aslikaata_emp_token', token);
+        localStorage.setItem('aslikaata_emp_refresh_token', res.data.refreshToken);
         localStorage.setItem('aslikaata_emp_user', JSON.stringify(res.data.user));
       }
       onLoginSuccess(token, res.data.user);

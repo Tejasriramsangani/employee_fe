@@ -41,7 +41,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     setActivePickup,
     setActiveTab,
     startLiveNavigation,
-    triggerIncomingOrderAlert,
   } = useEmployee();
 
   const [selectedStopForDrawer, setSelectedStopForDrawer] = useState<RouteStop | null>(null);
@@ -65,9 +64,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const handleStartNextPickup = (stop: RouteStop) => {
     setActivePickup(stop);
     setShiftStatus('ON_PICKUP');
-    if (onStartPickupFlow) {
-      onStartPickupFlow(stop.pickupCode);
-    }
+    startLiveNavigation(stop);
   };
 
   return (
@@ -124,15 +121,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => triggerIncomingOrderAlert()}
-            title="Simulate Incoming Bulk Dispatch Alert"
-            className="px-2 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-900 font-bold text-[10px] flex items-center gap-1 hover:bg-amber-100 transition shadow-xs cursor-pointer active:scale-95"
-          >
-            <span>🚨 Alert</span>
-          </button>
-
-          <button
-            type="button"
             className="p-2.5 rounded-full bg-white border border-slate-200/90 text-slate-700 shadow-xs relative hover:bg-slate-50 cursor-pointer"
           >
             <Bell className="w-4 h-4 text-slate-700" />
@@ -142,7 +130,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           {/* Avatar in Green Cap / Uniform */}
           <div className="w-10 h-10 rounded-full bg-emerald-100 border-2 border-emerald-500/80 p-0.5 relative shadow-xs flex items-center justify-center overflow-hidden">
             <div className="w-full h-full rounded-full bg-[#0A3D2B] flex items-center justify-center text-white font-bold text-xs uppercase">
-              👷 RK
+              {profile.name !== '—' ? profile.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2) : '—'}
             </div>
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 absolute bottom-0 right-0 border-2 border-white"></span>
           </div>
@@ -153,7 +141,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-sm space-y-2.5">
         <div className="flex items-center justify-between text-xs">
           <span className="font-extrabold text-slate-900">Today's Overview</span>
-          <span className="text-[11px] text-slate-400 font-medium">Mon, 05 Oct 2026</span>
+          <span className="text-[11px] text-slate-400 font-medium">
+            {new Date().toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
+          </span>
         </div>
 
         <div className="grid grid-cols-3 gap-2">
@@ -321,7 +311,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     <span className="font-extrabold text-xs text-slate-900">Next Pickup</span>
                   </div>
                   <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                    Starts in 45 mins
+                    {nextScheduledPickup.scheduledTime}
                   </span>
                 </div>
 

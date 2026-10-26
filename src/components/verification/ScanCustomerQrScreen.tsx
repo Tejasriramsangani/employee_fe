@@ -11,7 +11,7 @@ import {
   Camera,
   RefreshCw,
 } from 'lucide-react';
-import { useEmployee, RouteStop } from '../../context/EmployeeContext';
+import { useEmployee } from '../../context/EmployeeContext';
 import { fieldOpsApi } from '../../services/api';
 
 interface ScanCustomerQrScreenProps {
@@ -31,25 +31,12 @@ export const ScanCustomerQrScreen: React.FC<ScanCustomerQrScreenProps> = ({
     triggerVibration,
   } = useEmployee();
 
-  const stop: RouteStop = activePickup || {
-    id: 'stop_02',
-    stopNumber: 2,
-    pickupCode: 'AKP-10245',
-    customerName: 'Vinay Palakonda',
-    phone: '9908123456',
-    timeSlot: '11:00 AM - 01:00 PM',
-    scheduledTime: '11:00 AM',
-    address: 'Door 14-8-2, Behind Rythu Bazar, Madhura Nagar',
-    locality: 'Madhura Nagar, Vijayawada',
-    landmark: 'Near Water Tank',
-    estimatedWeightKg: 28,
-    itemsCategoryHint: 'Cardboard, PET Bottles, Iron',
-    status: 'IN_PROGRESS',
-  };
+  const stop = activePickup;
 
   const [isScanning, setIsScanning] = useState<boolean>(true);
   const [scanProgress, setScanProgress] = useState<number>(0);
   const [autoScanEnabled, setAutoScanEnabled] = useState<boolean>(true);
+  const [scanError, setScanError] = useState('');
 
   // Simulated auto-scanning radar line
   useEffect(() => {
@@ -61,14 +48,22 @@ export const ScanCustomerQrScreen: React.FC<ScanCustomerQrScreenProps> = ({
   }, [isScanning]);
 
   const handleSimulateSuccessfulScan = async () => {
+    if (!stop) return;
     setIsScanning(false);
+    setScanError('');
     triggerVibration([100, 50, 100]);
-    try {
-      await fieldOpsApi.verifyQr({
-        pickupId: stop.id,
-        qrToken: stop.pickupCode,
-      });
-    } catch (e) {}
+    const verified = await fieldOpsApi.verifyQr(stop.id, stop.pickupCode);
+    if (!verified.success) {
+      setScanError(verified.message || 'QR verification failed');
+      setIsScanning(true);
+      return;
+    }
+    const started = await fieldOpsApi.startPickup(stop.id);
+    if (!started.success) {
+      setScanError(started.message || 'Could not start pickup');
+      setIsScanning(true);
+      return;
+    }
     setTimeout(() => {
       if (onScanSuccess) {
         onScanSuccess();
@@ -77,6 +72,10 @@ export const ScanCustomerQrScreen: React.FC<ScanCustomerQrScreenProps> = ({
       }
     }, 350);
   };
+
+  if (!stop) {
+    return <div className="min-h-[720px] bg-slate-950 text-white flex items-center justify-center">No active pickup selected.</div>;
+  }
 
   const handleBack = () => {
     if (onCancel) {
@@ -266,6 +265,7 @@ export const ScanCustomerQrScreen: React.FC<ScanCustomerQrScreenProps> = ({
 
       {/* 5. Bottom Helper Card (matching Image 1) */}
       <div className="px-5 pb-5 space-y-3">
+        {scanError && <div className="p-3 rounded-xl bg-rose-950 text-rose-200 text-xs">{scanError}</div>}
         <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800/90 flex items-center gap-3 text-xs text-slate-300 shadow-md">
           <div className="w-6 h-6 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center shrink-0">
             <Info className="w-3.5 h-3.5 text-slate-300" />

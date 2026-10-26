@@ -22,6 +22,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { useEmployee, RouteStop } from '../../context/EmployeeContext';
+import { fieldOpsApi } from '../../services/api';
 
 interface LiveRouteNavigationScreenProps {
   onArrivedAtDoorstep?: (stop: RouteStop) => void;
@@ -40,30 +41,16 @@ export const LiveRouteNavigationScreen: React.FC<LiveRouteNavigationScreenProps>
     setShiftStatus,
   } = useEmployee();
 
-  const stop = activeNavStop || activePickup || {
-    id: 'stop_nav_demo',
-    stopNumber: 2,
-    pickupCode: 'AKP-10245',
-    customerName: 'Vinay Palakonda',
-    phone: '9908123456',
-    timeSlot: '11:00 AM - 01:00 PM',
-    scheduledTime: '11:00 AM',
-    address: 'Door 14-8-2, Behind Rythu Bazar, Madhura Nagar',
-    locality: 'Madhura Nagar, Vijayawada',
-    landmark: 'Near Water Tank',
-    estimatedWeightKg: 28,
-    itemsCategoryHint: 'Cardboard, PET Bottles, Iron',
-    status: 'IN_PROGRESS' as const,
-  };
+  const stop = activeNavStop || activePickup;
 
-  const [speed, setSpeed] = useState<number>(24);
-  const [batteryLevel, setBatteryLevel] = useState<number>(82);
-  const [distanceRemainingKm, setDistanceRemainingKm] = useState<number>(2.4);
-  const [minsRemaining, setMinsRemaining] = useState<number>(9);
+  const [speed, setSpeed] = useState<number | null>(null);
+  const [distanceRemainingKm] = useState<number | null>(null);
+  const [minsRemaining] = useState<number | null>(null);
   const [isVoiceMuted, setIsVoiceMuted] = useState<boolean>(false);
   const [slideProgress, setSlideProgress] = useState<number>(0);
   const [isArrived, setIsArrived] = useState<boolean>(false);
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
+  const [arrivalError, setArrivalError] = useState('');
 
   const navigationSteps = [
     {
@@ -92,19 +79,30 @@ export const LiveRouteNavigationScreen: React.FC<LiveRouteNavigationScreenProps>
     },
   ];
 
-  // Dynamic simulation of vehicle progress
   useEffect(() => {
-    const timer = setInterval(() => {
-      setSpeed((prev) => Math.min(38, Math.max(18, prev + (Math.random() * 6 - 3))));
-      setDistanceRemainingKm((prev) => {
-        if (prev <= 0.2) return 0.1;
-        return Number((prev - 0.05).toFixed(2));
+    if (!stop) return;
+    if (stop.rawStatus === 'ASSIGNED') {
+      fieldOpsApi.onTheWay(stop.id).then((result) => {
+        if (result.success) stop.rawStatus = 'ON_THE_WAY';
+        else setArrivalError(result.message || 'Unable to start navigation');
       });
-      setMinsRemaining((prev) => (prev > 2 ? prev - 1 : 2));
-    }, 4500);
-
-    return () => clearInterval(timer);
-  }, []);
+    }
+    if (!navigator.geolocation) return;
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        setSpeed(position.coords.speed == null ? null : position.coords.speed * 3.6);
+        fieldOpsApi.reportLocation(stop.id, {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          speed: position.coords.speed,
+          heading: position.coords.heading,
+        });
+      },
+      () => setSpeed(null),
+      { enableHighAccuracy: true, maximumAge: 10000 },
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [stop]);
 
   const handleExit = () => {
     setIsLiveNavOpen(false);
@@ -114,11 +112,19 @@ export const LiveRouteNavigationScreen: React.FC<LiveRouteNavigationScreenProps>
   };
 
   const handleOpenGoogleMaps = () => {
+    if (!stop) return;
     const destination = encodeURIComponent(`${stop.address}, ${stop.locality}`);
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${destination}`, '_blank');
   };
 
-  const handleConfirmArrival = () => {
+  const handleConfirmArrival = async () => {
+    if (!stop) return;
+    setArrivalError('');
+    const result = await fieldOpsApi.arrived(stop.id);
+    if (!result.success) {
+      setArrivalError(result.message || 'Could not confirm arrival');
+      return;
+    }
     setIsArrived(true);
     setTimeout(() => {
       setIsLiveNavOpen(false);
@@ -131,6 +137,14 @@ export const LiveRouteNavigationScreen: React.FC<LiveRouteNavigationScreenProps>
       }
     }, 400);
   };
+
+  if (!stop) {
+    return (
+      <div className="min-h-[700px] bg-slate-950 text-white flex items-center justify-center p-6 text-center">
+        No active pickup selected.
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-full h-full min-h-[700px] flex flex-col bg-slate-950 text-white overflow-hidden select-none">
@@ -271,12 +285,12 @@ export const LiveRouteNavigationScreen: React.FC<LiveRouteNavigationScreenProps>
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/85 backdrop-blur-md border border-slate-700/60 shadow-lg text-xs">
           <div className="flex items-center gap-1 text-emerald-400 font-medium">
             <Gauge className="w-3.5 h-3.5" />
-            <span>{Math.round(speed)} km/h</span>
+            <span>{speed == null ? '—' : `${Math.round(speed)} km/h`}</span>
           </div>
           <span className="text-slate-600">•</span>
           <div className="flex items-center gap-1 text-emerald-300 font-medium">
             <BatteryCharging className="w-3.5 h-3.5" />
-            <span>{batteryLevel}%</span>
+            <span>—</span>
           </div>
           <span className="text-slate-600">•</span>
           <div className="flex items-center gap-1 text-sky-400 font-medium">
@@ -350,16 +364,16 @@ export const LiveRouteNavigationScreen: React.FC<LiveRouteNavigationScreenProps>
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-2xl font-black text-white tracking-tight">
-                  {minsRemaining} <span className="text-sm font-semibold text-emerald-400">min</span>
+                  {minsRemaining == null ? '—' : minsRemaining} <span className="text-sm font-semibold text-emerald-400">min</span>
                 </span>
                 <span className="text-slate-600 font-bold">•</span>
                 <span className="text-sm font-semibold text-slate-300">
-                  {distanceRemainingKm} km
+                  {distanceRemainingKm == null ? '—' : `${distanceRemainingKm} km`}
                 </span>
               </div>
               <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-0.5">
                 <Clock className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Est. Arrival: 11:18 AM</span>
+                <span>Est. Arrival: —</span>
               </div>
             </div>
 
@@ -414,6 +428,7 @@ export const LiveRouteNavigationScreen: React.FC<LiveRouteNavigationScreenProps>
 
           {/* 5. PRIMARY ACTION: Slide / Tap when Arrived at Doorstep */}
           <div className="mt-2 pt-2 border-t border-slate-800/80">
+            {arrivalError && <p className="text-xs text-rose-300 mb-2">{arrivalError}</p>}
             {isArrived ? (
               <div className="w-full py-3.5 px-4 rounded-2xl bg-emerald-500 text-slate-950 font-black text-center flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30">
                 <CheckCircle2 className="w-5 h-5" />

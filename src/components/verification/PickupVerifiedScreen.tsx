@@ -11,7 +11,7 @@ import {
   Sparkles,
   ShieldCheck,
 } from 'lucide-react';
-import { useEmployee, RouteStop } from '../../context/EmployeeContext';
+import { useEmployee } from '../../context/EmployeeContext';
 
 interface PickupVerifiedScreenProps {
   onContinueToCatalog?: () => void;
@@ -24,21 +24,7 @@ export const PickupVerifiedScreen: React.FC<PickupVerifiedScreenProps> = ({
 }) => {
   const { activePickup, setPickupStep } = useEmployee();
 
-  const stop: RouteStop = activePickup || {
-    id: 'stop_02',
-    stopNumber: 2,
-    pickupCode: 'AKP-10245',
-    customerName: 'Vinay Palakonda',
-    phone: '9908123456',
-    timeSlot: '11:00 AM - 01:00 PM',
-    scheduledTime: '11:00 AM',
-    address: 'Door 14-8-2, Behind Rythu Bazar, Madhura Nagar',
-    locality: 'Madhura Nagar, Vijayawada',
-    landmark: 'Near Water Tank',
-    estimatedWeightKg: 28,
-    itemsCategoryHint: 'Cardboard, PET Bottles, Iron',
-    status: 'IN_PROGRESS',
-  };
+  const stop = activePickup;
 
   const handleContinue = () => {
     if (onContinueToCatalog) {
@@ -55,6 +41,10 @@ export const PickupVerifiedScreen: React.FC<PickupVerifiedScreenProps> = ({
       setPickupStep('STEP_1_SCAN_QR');
     }
   };
+
+  if (!stop) {
+    return <div className="min-h-[720px] flex items-center justify-center">No active pickup selected.</div>;
+  }
 
   return (
     <div className="relative min-h-[720px] flex flex-col justify-between bg-[#F8FAFC] text-slate-900 select-none p-4">

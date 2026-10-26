@@ -17,7 +17,8 @@ import {
   Handshake,
   CheckCircle2,
 } from 'lucide-react';
-import { useEmployee, RouteStop, CollectedScrapItem } from '../../context/EmployeeContext';
+import { useEmployee } from '../../context/EmployeeContext';
+import { fieldOpsApi } from '../../services/api';
 
 interface CustomerReviewScreenProps {
   onCustomerConfirmed?: () => void;
@@ -36,33 +37,50 @@ export const CustomerReviewScreen: React.FC<CustomerReviewScreenProps> = ({
     totalCollectedWeightKg,
     totalCollectedValueRupees,
     setPickupStep,
+    paymentMethod,
+    setPaymentMethod,
   } = useEmployee();
+  const stop = activePickup;
+  const [confirmError, setConfirmError] = useState('');
+  const [isConfirming, setIsConfirming] = useState(false);
 
-  const stop: RouteStop = activePickup || {
-    id: 'stop_02',
-    stopNumber: 2,
-    pickupCode: 'AKP-10245',
-    customerName: 'Vinay Palakonda',
-    phone: '9908123456',
-    timeSlot: '11:00 AM - 01:00 PM',
-    scheduledTime: '11:00 AM',
-    address: 'Door 14-8-2, Behind Rythu Bazar, Madhura Nagar',
-    locality: 'Madhura Nagar, Vijayawada',
-    landmark: 'Near Water Tank',
-    estimatedWeightKg: 28,
-    itemsCategoryHint: 'Cardboard, PET Bottles, Iron',
-    status: 'IN_PROGRESS',
-  };
-
-  const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'UPI'>('Cash');
-
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
+    if (!stop) return;
+    setIsConfirming(true);
+    setConfirmError('');
+    let currentPickup: any = null;
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      const result = await fieldOpsApi.getPickup(stop.id);
+      if (!result.success) {
+        setConfirmError(result.message || 'Could not check customer confirmation.');
+        setIsConfirming(false);
+        return;
+      }
+      currentPickup = result.data;
+      if (['CUSTOMER_CONFIRMED', 'PAYMENT_PENDING'].includes(currentPickup?.status)) break;
+      if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
+    if (!['CUSTOMER_CONFIRMED', 'PAYMENT_PENDING'].includes(currentPickup?.status)) {
+      setConfirmError('Waiting for the customer to confirm the pickup summary in their app.');
+      setIsConfirming(false);
+      return;
+    }
+    const settled = await fieldOpsApi.settlePickup(stop.id, paymentMethod);
+    setIsConfirming(false);
+    if (!settled.success) {
+      setConfirmError(settled.message || 'Failed to start settlement.');
+      return;
+    }
     if (onCustomerConfirmed) {
       onCustomerConfirmed();
     } else {
       setPickupStep('STEP_15_OTP');
     }
   };
+
+  if (!stop) {
+    return <div className="min-h-[720px] flex items-center justify-center">No active pickup selected.</div>;
+  }
 
   const handleEdit = () => {
     if (onEditDetails) {
@@ -123,7 +141,7 @@ export const CustomerReviewScreen: React.FC<CustomerReviewScreenProps> = ({
           <div className="flex items-start justify-between">
             <div>
               <h2 className="font-black text-sm text-slate-900">{stop.customerName}</h2>
-              <span className="text-[11px] text-slate-400 font-mono">Customer ID: CUS-2894</span>
+              <span className="text-[11px] text-slate-400 font-mono">Customer ID: {stop.customerId}</span>
             </div>
             <a
               href={`tel:${stop.phone}`}
@@ -140,7 +158,7 @@ export const CustomerReviewScreen: React.FC<CustomerReviewScreenProps> = ({
             </div>
             <div className="flex items-center gap-2">
               <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span>Sat, 04 Oct 2026</span>
+              <span>{new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
               <span className="text-slate-300">•</span>
               <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
               <span>{stop.timeSlot}</span>
@@ -159,9 +177,9 @@ export const CustomerReviewScreen: React.FC<CustomerReviewScreenProps> = ({
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
-                onClick={() => setPaymentMethod('Cash')}
+                onClick={() => setPaymentMethod('CASH')}
                 className={`px-3 py-1 rounded-xl text-xs font-bold transition ${
-                  paymentMethod === 'Cash'
+                  paymentMethod === 'CASH'
                     ? 'bg-[#0A3D2B] text-white shadow-xs'
                     : 'bg-slate-100 text-slate-600'
                 }`}
@@ -273,12 +291,14 @@ export const CustomerReviewScreen: React.FC<CustomerReviewScreenProps> = ({
 
       {/* 6. Sticky Bottom Action: Customer Confirmed -> (Yellow Button matching Image 5) */}
       <div className="fixed sm:absolute bottom-0 inset-x-0 p-4 bg-white/95 backdrop-blur-md border-t border-slate-200 z-40 shadow-xl">
+        {confirmError && <p className="text-xs text-rose-600 font-semibold mb-2">{confirmError}</p>}
         <button
           type="button"
           onClick={handleConfirm}
+          disabled={isConfirming}
           className="w-full py-3.5 px-6 rounded-2xl bg-[#F59E0B] hover:bg-amber-400 text-slate-950 font-black text-xs tracking-wide shadow-lg shadow-amber-950/20 flex items-center justify-center gap-2 cursor-pointer transition active:scale-[0.99]"
         >
-          <span>Customer Confirmed</span>
+          <span>{isConfirming ? 'Checking Confirmation…' : 'Customer Confirmed'}</span>
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>

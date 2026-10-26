@@ -36,6 +36,7 @@ function EmployeeAppContent() {
     startLiveNavigation,
     pickupStep,
     setPickupStep,
+    startActivePickupFlow,
   } = useEmployee();
 
   const [isServerDown, setIsServerDown] = useState(false);
@@ -57,8 +58,8 @@ function EmployeeAppContent() {
     setIsRetryingServer(false);
   };
 
-  const handleStartPickupFlow = (pickupCode: string) => {
-    setPickupStep('STEP_1_SCAN_QR');
+  const handleStartPickupFlow = async (pickupCode: string) => {
+    await startActivePickupFlow(pickupCode);
   };
 
   const handleNavigateToPickup = (stop: RouteStop) => {
