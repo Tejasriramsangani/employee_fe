@@ -1,16 +1,16 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ChevronLeft,
   Flashlight,
   Info,
   CheckCircle2,
-  Scan,
-  Sparkles,
   Camera,
-  RefreshCw,
+  Keyboard,
+  Loader2,
 } from 'lucide-react';
+import { Html5Qrcode } from 'html5-qrcode';
 import { useEmployee } from '../../context/EmployeeContext';
 import { fieldOpsApi } from '../../services/api';
 
@@ -32,257 +32,218 @@ export const ScanCustomerQrScreen: React.FC<ScanCustomerQrScreenProps> = ({
   } = useEmployee();
 
   const stop = activePickup;
-
-  const [isScanning, setIsScanning] = useState<boolean>(true);
-  const [scanProgress, setScanProgress] = useState<number>(0);
-  const [autoScanEnabled, setAutoScanEnabled] = useState<boolean>(true);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const [mode, setMode] = useState<'camera' | 'manual'>('camera');
+  const [manualToken, setManualToken] = useState('');
   const [scanError, setScanError] = useState('');
-
-  // Simulated auto-scanning radar line
-  useEffect(() => {
-    if (!isScanning) return;
-    const interval = setInterval(() => {
-      setScanProgress((prev) => (prev >= 100 ? 0 : prev + 4));
-    }, 80);
-    return () => clearInterval(interval);
-  }, [isScanning]);
-
-  const handleSimulateSuccessfulScan = async () => {
-    if (!stop) return;
-    setIsScanning(false);
-    setScanError('');
-    triggerVibration([100, 50, 100]);
-    const verified = await fieldOpsApi.verifyQr(stop.id, stop.pickupCode);
-    if (!verified.success) {
-      setScanError(verified.message || 'QR verification failed');
-      setIsScanning(true);
-      return;
-    }
-    const started = await fieldOpsApi.startPickup(stop.id);
-    if (!started.success) {
-      setScanError(started.message || 'Could not start pickup');
-      setIsScanning(true);
-      return;
-    }
-    setTimeout(() => {
-      if (onScanSuccess) {
-        onScanSuccess();
-      } else {
-        setPickupStep('STEP_2_VERIFIED');
-      }
-    }, 350);
-  };
-
-  if (!stop) {
-    return <div className="min-h-[720px] bg-slate-950 text-white flex items-center justify-center">No active pickup selected.</div>;
-  }
+  const [verifying, setVerifying] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
 
   const handleBack = () => {
-    if (onCancel) {
-      onCancel();
-    } else {
-      setPickupStep('IDLE');
+    if (onCancel) onCancel();
+    else setPickupStep('IDLE');
+  };
+
+  const verifyToken = async (qrToken: string) => {
+    if (!stop || !qrToken.trim()) return;
+    setVerifying(true);
+    setScanError('');
+    try {
+      // Backend verify requires ARRIVED — mark arrived unless already past that gate
+      const raw = String(stop.rawStatus || '').toUpperCase();
+      const alreadyArrivedOrLater = [
+        'ARRIVED',
+        'VERIFIED',
+        'IN_PROGRESS',
+        'MEASURED',
+        'SUMMARY_READY',
+      ].includes(raw);
+      if (!alreadyArrivedOrLater) {
+        const arrived = await fieldOpsApi.arrived(stop.id);
+        if (!arrived.success) {
+          const msg = (arrived.message || '').toLowerCase();
+          if (!msg.includes('arrived') && !msg.includes('already')) {
+            setScanError(arrived.message || 'Mark arrived first, then scan QR.');
+            setVerifying(false);
+            return;
+          }
+        }
+      }
+
+      const verified = await fieldOpsApi.verifyQr(stop.id, qrToken.trim());
+      if (!verified.success) {
+        setScanError(verified.message || 'QR verification failed. Ask customer to refresh their QR.');
+        setVerifying(false);
+        return;
+      }
+
+      triggerVibration([100, 50, 100]);
+      const started = await fieldOpsApi.startPickup(stop.id);
+      if (!started.success) {
+        setScanError(started.message || 'Verified, but could not start pickup.');
+        setVerifying(false);
+        return;
+      }
+
+      if (onScanSuccess) onScanSuccess();
+      else setPickupStep('STEP_2_VERIFIED');
+    } catch (e: any) {
+      setScanError(e?.message || 'Verification failed.');
+    } finally {
+      setVerifying(false);
     }
   };
 
+  useEffect(() => {
+    if (mode !== 'camera' || !stop) return;
+
+    const elementId = 'employee-qr-reader';
+    let cancelled = false;
+    const scanner = new Html5Qrcode(elementId);
+    scannerRef.current = scanner;
+
+    scanner
+      .start(
+        { facingMode: 'environment' },
+        { fps: 8, qrbox: { width: 240, height: 240 } },
+        async (decoded) => {
+          if (cancelled || verifying) return;
+          try {
+            await scanner.pause(true);
+          } catch {
+            /* ignore */
+          }
+          await verifyToken(decoded);
+        },
+        () => {
+          /* ignore frame errors */
+        },
+      )
+      .then(() => {
+        if (!cancelled) setCameraReady(true);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setScanError('Camera unavailable. Use manual code entry instead.');
+          setMode('manual');
+        }
+      });
+
+    return () => {
+      cancelled = true;
+      setCameraReady(false);
+      scanner
+        .stop()
+        .then(() => scanner.clear())
+        .catch(() => undefined);
+      scannerRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, stop?.id]);
+
+  if (!stop) {
+    return (
+      <div className="min-h-[720px] bg-slate-950 text-white flex items-center justify-center">
+        No active pickup selected.
+      </div>
+    );
+  }
+
   return (
-    <div className="relative min-h-[720px] flex flex-col bg-slate-950 text-white select-none">
-      {/* 1. Header with back button & title */}
-      <div className="px-4 pt-3 pb-2 flex items-center justify-between border-b border-slate-900">
-        <button
-          onClick={handleBack}
-          type="button"
-          className="p-2 rounded-full hover:bg-slate-800 text-slate-300 hover:text-white transition cursor-pointer active:scale-95"
-        >
-          <ChevronLeft className="w-6 h-6" />
-        </button>
-        <h1 className="text-sm font-black text-slate-100 tracking-tight">
-          Verify Pickup
-        </h1>
-        <div className="w-8" /> {/* Balance spacer */}
-      </div>
-
-      {/* 2. Instructions Title */}
-      <div className="px-6 pt-4 pb-2 text-center">
-        <h2 className="text-lg font-black text-white tracking-tight">
-          Scan Customer QR
-        </h2>
-        <p className="text-xs text-slate-400 mt-1 max-w-[280px] mx-auto font-medium">
-          Scan the customer's pickup QR to verify this pickup.
-        </p>
-      </div>
-
-      {/* 3. Camera Viewfinder Screen with Simulated Customer Smartphone */}
-      <div className="flex-1 px-5 py-3 flex flex-col items-center justify-center relative">
-        {/* Viewfinder Target Outer Box */}
-        <div
-          onClick={handleSimulateSuccessfulScan}
-          className="relative w-full max-w-[310px] aspect-[4/5] rounded-3xl bg-slate-900 border-2 border-slate-800 overflow-hidden shadow-2xl cursor-pointer group"
-          title="Click to simulate successful scan"
-        >
-          {/* Flashlight beam simulation */}
-          {isFlashlightOn && (
-            <div className="absolute inset-0 bg-white/20 backdrop-brightness-150 pointer-events-none z-30 transition-opacity" />
-          )}
-
-          {/* Camera Blur Ambient Background */}
-          <div className="absolute inset-0 bg-radial from-slate-800 via-slate-900 to-slate-950 opacity-90" />
-
-          {/* Simulated Customer Smartphone Frame inside Camera Lens */}
-          <div className="absolute inset-4 rounded-2xl bg-slate-950 border border-slate-700/60 p-3 flex flex-col items-center justify-between shadow-inner">
-            {/* Customer Phone Top Status & Brand Header */}
-            <div className="w-full flex items-center justify-center pt-1">
-              <div className="px-3 py-1 rounded-full bg-emerald-950 border border-emerald-500/50 flex items-center gap-1.5 shadow-sm">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-[10px] font-black text-emerald-300 tracking-wider uppercase">
-                  ASLI KAATA
-                </span>
-              </div>
-            </div>
-
-            {/* High-Fidelity SVG QR Code */}
-            <div className="relative p-2.5 rounded-2xl bg-white shadow-xl flex flex-col items-center justify-center">
-              <svg
-                viewBox="0 0 100 100"
-                className="w-36 h-36"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                {/* Background */}
-                <rect width="100" height="100" fill="#ffffff" />
-                
-                {/* Top-Left Corner Position Finder */}
-                <rect x="10" y="10" width="24" height="24" rx="3" fill="#0A3D2B" />
-                <rect x="14" y="14" width="16" height="16" rx="2" fill="#ffffff" />
-                <rect x="18" y="18" width="8" height="8" rx="1" fill="#0A3D2B" />
-
-                {/* Top-Right Corner Position Finder */}
-                <rect x="66" y="10" width="24" height="24" rx="3" fill="#0A3D2B" />
-                <rect x="70" y="14" width="16" height="16" rx="2" fill="#ffffff" />
-                <rect x="74" y="18" width="8" height="8" rx="1" fill="#0A3D2B" />
-
-                {/* Bottom-Left Corner Position Finder */}
-                <rect x="10" y="66" width="24" height="24" rx="3" fill="#0A3D2B" />
-                <rect x="14" y="70" width="16" height="16" rx="2" fill="#ffffff" />
-                <rect x="18" y="74" width="8" height="8" rx="1" fill="#0A3D2B" />
-
-                {/* Dynamic QR Bit Patterns */}
-                <rect x="38" y="12" width="6" height="6" fill="#0A3D2B" />
-                <rect x="48" y="18" width="8" height="4" fill="#0A3D2B" />
-                <rect x="40" y="26" width="6" height="6" fill="#0A3D2B" />
-                <rect x="52" y="28" width="6" height="6" fill="#0A3D2B" />
-
-                <rect x="14" y="40" width="8" height="6" fill="#0A3D2B" />
-                <rect x="28" y="42" width="6" height="8" fill="#0A3D2B" />
-                <rect x="38" y="40" width="10" height="10" fill="#0A3D2B" />
-                <rect x="52" y="42" width="8" height="6" fill="#0A3D2B" />
-                <rect x="66" y="40" width="8" height="8" fill="#0A3D2B" />
-                <rect x="78" y="44" width="8" height="6" fill="#0A3D2B" />
-
-                <rect x="14" y="52" width="8" height="8" fill="#0A3D2B" />
-                <rect x="26" y="54" width="8" height="6" fill="#0A3D2B" />
-                <rect x="40" y="56" width="6" height="8" fill="#0A3D2B" />
-                <rect x="50" y="52" width="8" height="8" fill="#0A3D2B" />
-                <rect x="64" y="54" width="10" height="6" fill="#0A3D2B" />
-                <rect x="78" y="56" width="8" height="6" fill="#0A3D2B" />
-
-                <rect x="38" y="68" width="8" height="6" fill="#0A3D2B" />
-                <rect x="50" y="72" width="8" height="8" fill="#0A3D2B" />
-                <rect x="62" y="68" width="6" height="8" fill="#0A3D2B" />
-                <rect x="74" y="70" width="12" height="6" fill="#0A3D2B" />
-                <rect x="42" y="82" width="12" height="6" fill="#0A3D2B" />
-                <rect x="60" y="80" width="8" height="8" fill="#0A3D2B" />
-                <rect x="74" y="82" width="12" height="6" fill="#0A3D2B" />
-
-                {/* Central Brand Emblem */}
-                <circle cx="50" cy="50" r="9" fill="#F59E0B" />
-                <path
-                  d="M 46 50 L 49 53 L 55 47"
-                  stroke="#0A3D2B"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-
-              {/* Subtext under QR */}
-              <div className="mt-1 text-center">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                  Pickup ID
-                </span>
-                <span className="font-mono font-black text-xs text-slate-900 tracking-wider">
-                  {stop.pickupCode}
-                </span>
-              </div>
-            </div>
-
-            {/* Customer Name Tag */}
-            <div className="text-center pb-1">
-              <span className="text-[11px] text-slate-400 font-medium">
-                Customer: <strong className="text-white">{stop.customerName}</strong>
-              </span>
-            </div>
-          </div>
-
-          {/* Animated Green Corner Brackets (Exact Match to Image 1) */}
-          <div className="absolute top-3 left-3 w-8 h-8 border-t-4 border-l-4 border-emerald-400 rounded-tl-xl pointer-events-none z-20 shadow-sm shadow-emerald-400/50" />
-          <div className="absolute top-3 right-3 w-8 h-8 border-t-4 border-r-4 border-emerald-400 rounded-tr-xl pointer-events-none z-20 shadow-sm shadow-emerald-400/50" />
-          <div className="absolute bottom-3 left-3 w-8 h-8 border-b-4 border-l-4 border-emerald-400 rounded-bl-xl pointer-events-none z-20 shadow-sm shadow-emerald-400/50" />
-          <div className="absolute bottom-3 right-3 w-8 h-8 border-b-4 border-r-4 border-emerald-400 rounded-br-xl pointer-events-none z-20 shadow-sm shadow-emerald-400/50" />
-
-          {/* Vertical Laser Scanline */}
-          <div
-            className="absolute left-4 right-4 h-0.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent pointer-events-none z-20 shadow-[0_0_8px_#34d399]"
-            style={{ top: `${scanProgress}%` }}
-          />
-
-          {/* Tap Prompt Overlay on Hover */}
-          <div className="absolute inset-x-0 bottom-3 text-center z-20 group-hover:scale-105 transition-transform">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/90 text-slate-950 font-black text-[11px] shadow-lg">
-              <Sparkles className="w-3.5 h-3.5" /> Tap anywhere to verify QR
-            </span>
-          </div>
-        </div>
-
-        {/* 4. Flashlight Toggle Button (matches Image 1) */}
-        <div className="mt-4 flex flex-col items-center">
-          <button
-            type="button"
-            onClick={() => setIsFlashlightOn(!isFlashlightOn)}
-            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-lg active:scale-95 cursor-pointer ${
-              isFlashlightOn
-                ? 'bg-amber-400 text-slate-950 ring-4 ring-amber-400/30'
-                : 'bg-slate-900 border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800'
-            }`}
-          >
-            <Flashlight className="w-5 h-5" />
-          </button>
-          <span className="text-[11px] font-semibold text-slate-400 mt-1">
-            Flashlight {isFlashlightOn ? 'On' : 'Off'}
-          </span>
-        </div>
-      </div>
-
-      {/* 5. Bottom Helper Card (matching Image 1) */}
-      <div className="px-5 pb-5 space-y-3">
-        {scanError && <div className="p-3 rounded-xl bg-rose-950 text-rose-200 text-xs">{scanError}</div>}
-        <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800/90 flex items-center gap-3 text-xs text-slate-300 shadow-md">
-          <div className="w-6 h-6 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center shrink-0">
-            <Info className="w-3.5 h-3.5 text-slate-300" />
-          </div>
-          <p className="text-[11px] text-slate-300 leading-snug">
-            Ask the customer to open their pickup details and show the QR code.
-          </p>
-        </div>
-
-        {/* Cancel Button */}
+    <div className="min-h-[720px] bg-slate-950 text-white flex flex-col">
+      <header className="px-4 py-3 flex items-center justify-between border-b border-white/10">
         <button
           type="button"
           onClick={handleBack}
-          className="w-full py-3.5 rounded-2xl border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 font-bold text-xs transition cursor-pointer active:scale-[0.99] text-center"
+          className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center cursor-pointer"
         >
-          Cancel
+          <ChevronLeft className="w-5 h-5" />
         </button>
+        <div className="text-center">
+          <h1 className="text-sm font-black">Scan Customer QR</h1>
+          <p className="text-[10px] text-slate-400 font-mono">{stop.pickupCode}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsFlashlightOn(!isFlashlightOn)}
+          className={`w-9 h-9 rounded-full flex items-center justify-center cursor-pointer ${
+            isFlashlightOn ? 'bg-amber-400 text-slate-950' : 'bg-white/10'
+          }`}
+          title="Flashlight (device dependent)"
+        >
+          <Flashlight className="w-4 h-4" />
+        </button>
+      </header>
+
+      <div className="px-4 pt-3 flex gap-2">
+        <button
+          type="button"
+          onClick={() => setMode('camera')}
+          className={`flex-1 py-2 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer ${
+            mode === 'camera' ? 'bg-emerald-500 text-slate-950' : 'bg-white/10 text-white'
+          }`}
+        >
+          <Camera className="w-3.5 h-3.5" /> Camera
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode('manual')}
+          className={`flex-1 py-2 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer ${
+            mode === 'manual' ? 'bg-emerald-500 text-slate-950' : 'bg-white/10 text-white'
+          }`}
+        >
+          <Keyboard className="w-3.5 h-3.5" /> Enter code
+        </button>
+      </div>
+
+      <div className="flex-1 px-4 py-4 space-y-4">
+        <div className="p-3 rounded-2xl bg-emerald-950/50 border border-emerald-800/60 flex gap-2 text-[11px] text-emerald-100">
+          <Info className="w-4 h-4 shrink-0 mt-0.5" />
+          Ask the customer to open <strong>My Pickups → this order</strong> and show the green QR card.
+        </div>
+
+        {mode === 'camera' ? (
+          <div className="relative rounded-3xl overflow-hidden border border-white/15 bg-black min-h-[320px]">
+            <div id="employee-qr-reader" className="w-full" />
+            {!cameraReady && (
+              <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400 gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" /> Starting camera…
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">
+              Paste / type QR token from customer
+            </label>
+            <textarea
+              value={manualToken}
+              onChange={(e) => setManualToken(e.target.value)}
+              rows={4}
+              placeholder="AK-QR-…"
+              className="w-full rounded-2xl bg-white/5 border border-white/15 px-3 py-3 text-xs text-white placeholder:text-slate-500 outline-none focus:border-emerald-400"
+            />
+            <button
+              type="button"
+              disabled={verifying || !manualToken.trim()}
+              onClick={() => verifyToken(manualToken)}
+              className="w-full py-3 rounded-2xl bg-emerald-500 text-slate-950 font-black text-sm disabled:opacity-40 cursor-pointer inline-flex items-center justify-center gap-2"
+            >
+              {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+              Verify & start pickup
+            </button>
+          </div>
+        )}
+
+        {scanError && (
+          <div className="p-3 rounded-xl bg-rose-950 text-rose-200 text-xs font-semibold">{scanError}</div>
+        )}
+
+        {verifying && mode === 'camera' && (
+          <div className="text-center text-xs text-emerald-300 font-bold flex items-center justify-center gap-2">
+            <Loader2 className="w-4 h-4 animate-spin" /> Verifying QR…
+          </div>
+        )}
       </div>
     </div>
   );
