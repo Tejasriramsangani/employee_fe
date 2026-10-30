@@ -15,6 +15,9 @@ import {
   Scale,
   X,
   Play,
+  ArrowRight,
+  IndianRupee,
+  Weight,
 } from 'lucide-react';
 import { useEmployee, RouteStop } from '../../context/EmployeeContext';
 
@@ -31,14 +34,18 @@ export const MyPickupsScreen: React.FC<MyPickupsScreenProps> = ({
     routeStops,
     routeTitle,
     startLiveNavigation,
-    setActivePickup,
+    startActivePickupFlow,
+    setActiveTab,
     setPickupStep,
-    setShiftStatus,
+    pickupStep,
   } = useEmployee();
 
   const [filter, setFilter] = useState<'ALL' | 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED'>('ALL');
   const [search, setSearch] = useState('');
-  const [inspectingStop, setInspectingStop] = useState<RouteStop | null>(null);
+
+  // Each modal type is independent
+  const [scheduledStop, setScheduledStop] = useState<RouteStop | null>(null);
+  const [completedStop, setCompletedStop] = useState<RouteStop | null>(null);
 
   const filteredStops = routeStops.filter((s) => {
     if (filter !== 'ALL' && s.status !== filter) return false;
@@ -53,6 +60,26 @@ export const MyPickupsScreen: React.FC<MyPickupsScreenProps> = ({
     }
     return true;
   });
+
+  // ─── Card click: branch by status ───────────────────────────────────────────
+  const handleCardClick = async (stop: RouteStop) => {
+    if (stop.status === 'COMPLETED') {
+      setCompletedStop(stop);
+      return;
+    }
+
+    if (stop.status === 'IN_PROGRESS') {
+      // Resume the active pickup flow directly
+      await startActivePickupFlow(stop.id);
+      // startActivePickupFlow sets activePickup + pickupStep to STEP_1_SCAN_QR
+      // Switch tab to HOME so the step screens are visible
+      setActiveTab('HOME');
+      return;
+    }
+
+    // SCHEDULED → show inspector modal
+    setScheduledStop(stop);
+  };
 
   const handleStartLiveNavigation = (e: React.MouseEvent, stop: RouteStop) => {
     e.stopPropagation();
@@ -69,13 +96,15 @@ export const MyPickupsScreen: React.FC<MyPickupsScreenProps> = ({
     window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank');
   };
 
-  const handleStartPickup = (stop: RouteStop) => {
-    startLiveNavigation(stop);
+  const handleStartCollectionFromModal = async (stop: RouteStop) => {
+    setScheduledStop(null);
+    await startActivePickupFlow(stop.id);
+    setActiveTab('HOME');
   };
 
   return (
     <div className="p-4 space-y-4 select-none pb-24">
-      {/* 1. Header with route title & summary */}
+      {/* 1. Header */}
       <div>
         <h1 className="text-lg font-black text-slate-900 tracking-tight">Today's Route Sequence</h1>
         <p className="text-xs text-slate-500 font-medium">
@@ -127,12 +156,12 @@ export const MyPickupsScreen: React.FC<MyPickupsScreenProps> = ({
         ))}
       </div>
 
-      {/* 4. Ordered Stop Cards */}
+      {/* 4. Stop Cards */}
       <div className="space-y-3">
         {filteredStops.map((stop) => (
           <div
             key={stop.id}
-            onClick={() => setInspectingStop(stop)}
+            onClick={() => handleCardClick(stop)}
             className={`p-3.5 rounded-2xl bg-white border transition-all cursor-pointer space-y-2.5 shadow-xs hover:border-slate-300 active:scale-[0.99] ${
               stop.status === 'IN_PROGRESS'
                 ? 'border-amber-400 ring-2 ring-amber-400/20'
@@ -141,7 +170,7 @@ export const MyPickupsScreen: React.FC<MyPickupsScreenProps> = ({
                 : 'border-slate-200'
             }`}
           >
-            {/* Card Top: Stop Number Badge, Code, and Status Pill */}
+            {/* Top: Stop badge, code, status pill */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="w-6 h-6 rounded-full bg-[#0A3D2B] text-white font-black text-xs flex items-center justify-center">
@@ -175,88 +204,106 @@ export const MyPickupsScreen: React.FC<MyPickupsScreenProps> = ({
               </div>
             </div>
 
-            {/* Meta details & Action buttons */}
+            {/* Bottom: meta + status-aware action hint */}
             <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
               <span className="text-[11px] text-slate-400 font-medium">
                 ~{stop.estimatedWeightKg} kg • {stop.itemsCategoryHint}
               </span>
 
-              {/* Direct Quick Actions: Call + Navigate Route */}
-              <div className="flex items-center gap-1.5">
-                <a
-                  href={`tel:${stop.phone}`}
-                  onClick={(e) => e.stopPropagation()}
-                  className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition"
-                  title="Call Customer"
-                >
-                  <Phone className="w-3.5 h-3.5" />
-                </a>
-
-                <button
-                  type="button"
-                  onClick={(e) => handleStartLiveNavigation(e, stop)}
-                  className="px-2.5 py-1 rounded-lg bg-[#0A3D2B] text-white hover:bg-[#0E4D36] font-bold text-[11px] flex items-center gap-1 shadow-xs cursor-pointer active:scale-95 transition"
-                  title="Live Turn-by-Turn Navigation"
-                >
-                  <Compass className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Navigate</span>
-                </button>
-              </div>
+              {stop.status === 'COMPLETED' ? (
+                /* Completed: show final value hint */
+                <span className="flex items-center gap-1 text-[11px] text-emerald-700 font-bold">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  {stop.finalScrapValueRupees != null
+                    ? `₹ ${stop.finalScrapValueRupees.toFixed(0)}`
+                    : 'Done'}
+                </span>
+              ) : stop.status === 'IN_PROGRESS' ? (
+                /* In Progress: resume CTA */
+                <span className="flex items-center gap-1 text-[11px] text-amber-700 font-black animate-pulse">
+                  <ArrowRight className="w-3.5 h-3.5" />
+                  Tap to Resume
+                </span>
+              ) : (
+                /* Scheduled: call + navigate quick buttons */
+                <div className="flex items-center gap-1.5">
+                  <a
+                    href={`tel:${stop.phone}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition"
+                    title="Call Customer"
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={(e) => handleStartLiveNavigation(e, stop)}
+                    className="px-2.5 py-1 rounded-lg bg-[#0A3D2B] text-white hover:bg-[#0E4D36] font-bold text-[11px] flex items-center gap-1 shadow-xs cursor-pointer active:scale-95 transition"
+                    title="Live Turn-by-Turn Navigation"
+                  >
+                    <Compass className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Navigate</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         ))}
       </div>
 
-      {/* 5. Stop Inspector Drawer Modal */}
-      {inspectingStop && (
+      {/* ── MODAL A: SCHEDULED Inspector Drawer ─────────────────────────────── */}
+      {scheduledStop && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/70 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in">
           <div className="w-full max-w-[440px] bg-white rounded-t-[32px] sm:rounded-3xl p-5 shadow-2xl space-y-4 animate-in slide-in-from-bottom-6 duration-200">
+            {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <span className="font-mono text-[10px] text-slate-400">{inspectingStop.pickupCode}</span>
+                <span className="font-mono text-[10px] text-slate-400">{scheduledStop.pickupCode}</span>
                 <h3 className="font-black text-slate-900 text-sm">
-                  Stop #{inspectingStop.stopNumber}: {inspectingStop.customerName}
+                  Stop #{scheduledStop.stopNumber}: {scheduledStop.customerName}
                 </h3>
               </div>
               <button
                 type="button"
-                onClick={() => setInspectingStop(null)}
+                onClick={() => setScheduledStop(null)}
                 className="p-1.5 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
+            {/* Details */}
             <div className="space-y-2 text-xs text-slate-600">
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
                 <div className="flex items-center gap-1.5 text-slate-700 font-semibold">
                   <MapPin className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>{inspectingStop.address}</span>
+                  <span>{scheduledStop.address}</span>
                 </div>
-                {inspectingStop.landmark && (
-                  <div className="text-[10px] text-slate-400">Landmark: {inspectingStop.landmark}</div>
+                {scheduledStop.landmark && (
+                  <div className="text-[10px] text-slate-400">Landmark: {scheduledStop.landmark}</div>
                 )}
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
                   <span className="text-[9px] text-slate-400 font-bold uppercase block">Time Window</span>
-                  <span className="font-bold text-slate-900 text-xs mt-0.5 block">{inspectingStop.timeSlot}</span>
+                  <span className="font-bold text-slate-900 text-xs mt-0.5 block">{scheduledStop.timeSlot}</span>
                 </div>
                 <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
                   <span className="text-[9px] text-slate-400 font-bold uppercase block">Est. Weight</span>
                   <span className="font-bold text-emerald-800 text-xs mt-0.5 block">
-                    ~{inspectingStop.estimatedWeightKg} kg
+                    ~{scheduledStop.estimatedWeightKg} kg
                   </span>
                 </div>
               </div>
             </div>
 
+            {/* Map actions */}
             <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
               <button
                 type="button"
                 onClick={(e) => {
-                  handleOpenGoogleMaps(e, inspectingStop);
+                  handleOpenGoogleMaps(e, scheduledStop);
                 }}
                 className="py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-slate-50 cursor-pointer"
               >
@@ -267,8 +314,8 @@ export const MyPickupsScreen: React.FC<MyPickupsScreenProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  const s = inspectingStop;
-                  setInspectingStop(null);
+                  const s = scheduledStop;
+                  setScheduledStop(null);
                   startLiveNavigation(s);
                 }}
                 className="py-2.5 rounded-xl bg-[#0A3D2B] text-white font-bold text-xs hover:bg-[#0E4D36] flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
@@ -278,17 +325,104 @@ export const MyPickupsScreen: React.FC<MyPickupsScreenProps> = ({
               </button>
             </div>
 
+            {/* Start collection CTA */}
             <button
               type="button"
-              onClick={() => {
-                const s = inspectingStop;
-                setInspectingStop(null);
-                handleStartPickup(s);
-              }}
+              onClick={() => handleStartCollectionFromModal(scheduledStop)}
               className="w-full py-3 rounded-2xl bg-[#F59E0B] text-slate-950 font-black text-xs hover:bg-amber-400 flex items-center justify-center gap-2 shadow-md cursor-pointer transition active:scale-[0.99]"
             >
               <Play className="w-4 h-4 fill-slate-950" />
               <span>Start Doorstep Collection Now</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL B: COMPLETED Read-only Summary Drawer ─────────────────────── */}
+      {completedStop && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/70 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in">
+          <div className="w-full max-w-[440px] bg-white rounded-t-[32px] sm:rounded-3xl p-5 shadow-2xl space-y-4 animate-in slide-in-from-bottom-6 duration-200">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <span className="font-mono text-[10px] text-slate-400">{completedStop.pickupCode}</span>
+                <h3 className="font-black text-slate-900 text-sm">
+                  Stop #{completedStop.stopNumber}: {completedStop.customerName}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCompletedStop(null)}
+                className="p-1.5 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Completed badge */}
+            <div className="flex flex-col items-center py-3">
+              <div className="w-14 h-14 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mb-2">
+                <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+              </div>
+              <span className="text-sm font-black text-emerald-800">Pickup Completed</span>
+              {completedStop.completedAt && (
+                <span className="text-[11px] text-slate-400 mt-0.5">
+                  {new Date(completedStop.completedAt).toLocaleString('en-IN', {
+                    day: 'numeric',
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              )}
+            </div>
+
+            {/* Summary grid */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-1">
+                <div className="flex items-center gap-1.5 text-[9px] text-emerald-700 font-bold uppercase">
+                  <Scale className="w-3 h-3" />
+                  Final Weight
+                </div>
+                <div className="text-lg font-black text-emerald-900">
+                  {completedStop.finalWeightKg != null
+                    ? `${completedStop.finalWeightKg.toFixed(2)} kg`
+                    : '—'}
+                </div>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 space-y-1">
+                <div className="flex items-center gap-1.5 text-[9px] text-amber-700 font-bold uppercase">
+                  <IndianRupee className="w-3 h-3" />
+                  Scrap Value
+                </div>
+                <div className="text-lg font-black text-amber-900">
+                  {completedStop.finalScrapValueRupees != null
+                    ? `₹ ${completedStop.finalScrapValueRupees.toFixed(2)}`
+                    : '—'}
+                </div>
+              </div>
+            </div>
+
+            {/* Address row */}
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <div className="flex items-center gap-1.5 text-xs text-slate-600 font-semibold">
+                <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>{completedStop.address}</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-1">
+                <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <span>{completedStop.timeSlot}</span>
+              </div>
+            </div>
+
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={() => setCompletedStop(null)}
+              className="w-full py-3 rounded-2xl bg-slate-900 text-white font-black text-xs hover:bg-slate-800 flex items-center justify-center gap-2 cursor-pointer transition active:scale-[0.99]"
+            >
+              Close
             </button>
           </div>
         </div>

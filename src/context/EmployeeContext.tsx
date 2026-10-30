@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { fieldOpsApi } from '../services/api';
 
 export type ShiftStatus = 'AVAILABLE' | 'ON_PICKUP' | 'COMPLETED';
@@ -74,6 +74,7 @@ export interface RouteExpense {
 export interface ScrapCatalogItem {
   id: string;
   name: string;
+  categoryId: string;
   category: string;
   ratePerKg: number;
   unit: string;
@@ -130,6 +131,7 @@ interface EmployeeContextType {
   isFlashlightOn: boolean;
   setIsFlashlightOn: (on: boolean) => void;
   catalogItems: ScrapCatalogItem[];
+  refreshCatalog: () => Promise<void>;
   selectedCatalogIds: string[];
   toggleCatalogItemSelection: (id: string) => void;
   collectedItems: CollectedScrapItem[];
@@ -237,16 +239,38 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [isFlashlightOn, setIsFlashlightOn] = useState(false);
   const [catalogItems, setCatalogItems] = useState<ScrapCatalogItem[]>([]);
   const [selectedCatalogIds, setSelectedCatalogIds] = useState<string[]>([]);
+  const [pickupCategoryIds, setPickupCategoryIds] = useState<string[]>([]);
+  // Guards the one-time auto-selection of the customer's booked categories so a
+  // late catalog fetch never overwrites choices the employee already made.
+  const catalogAutoAppliedRef = useRef(false);
   const [collectedItems, setCollectedItems] = useState<CollectedScrapItem[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
   const [lastCompletion, setLastCompletion] = useState<CompletionState | null>(null);
 
+  const refreshCatalog = useCallback(async () => {
+    const catalog = await fieldOpsApi.fetchCatalog();
+    const flattened = (Array.isArray(catalog) ? catalog : []).flatMap((category: any) =>
+      (Array.isArray(category.products) ? category.products : [])
+        .filter((product: any) => product.activeRate)
+        .map((product: any) => ({
+          id: String(product.id || product._id),
+          name: product.name || '—',
+          categoryId: String(category.id || category._id || ''),
+          category: category.name || 'Other',
+          ratePerKg: Number(product.activeRate.ratePerKgRupees || 0),
+          unit: 'kg',
+          iconType: String(product.code || product.name || '').toLowerCase(),
+        })),
+    );
+    setCatalogItems(flattened);
+  }, []);
+
   const refreshDashboardData = useCallback(async () => {
-    const [serverProfile, todayRoute, assignedPickups, catalog] = await Promise.all([
+    const [serverProfile, todayRoute, assignedPickups] = await Promise.all([
       fieldOpsApi.fetchProfile(),
       fieldOpsApi.fetchTodayRoute(),
       fieldOpsApi.fetchAssignedPickups(),
-      fieldOpsApi.fetchCatalog(),
+      refreshCatalog(),
     ]);
 
     if (serverProfile) {
@@ -282,21 +306,20 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const current = stops.find((stop) => stop.status === 'IN_PROGRESS');
     setActivePickup((previous) => current || stops.find((stop) => stop.id === previous?.id) || null);
     setShiftStatus(current ? 'ON_PICKUP' : stops.length > 0 && stops.every((stop) => stop.status === 'COMPLETED') ? 'COMPLETED' : 'AVAILABLE');
+  }, [refreshCatalog]);
 
-    const flattened = (Array.isArray(catalog) ? catalog : []).flatMap((category: any) =>
-      (Array.isArray(category.products) ? category.products : [])
-        .filter((product: any) => product.activeRate)
-        .map((product: any) => ({
-          id: String(product.id || product._id),
-          name: product.name || '—',
-          category: category.name || 'Other',
-          ratePerKg: Number(product.activeRate.ratePerKgRupees || 0),
-          unit: 'kg',
-          iconType: String(product.code || product.name || '').toLowerCase(),
-        })),
-    );
-    setCatalogItems(flattened);
-  }, []);
+  // Pre-select the catalog items of the categories the customer chose while
+  // booking, once both the catalog and the pickup's categories are available.
+  // Runs once per pickup flow; manual toggles set the ref to skip it.
+  useEffect(() => {
+    if (catalogAutoAppliedRef.current) return;
+    if (catalogItems.length === 0 || pickupCategoryIds.length === 0) return;
+    const preselected = catalogItems
+      .filter((item) => pickupCategoryIds.includes(item.categoryId))
+      .map((item) => item.id);
+    if (preselected.length > 0) setSelectedCatalogIds(preselected);
+    catalogAutoAppliedRef.current = true;
+  }, [catalogItems, pickupCategoryIds]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -344,6 +367,7 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const toggleCatalogItemSelection = (id: string) => {
+    catalogAutoAppliedRef.current = true;
     setSelectedCatalogIds((previous) =>
       previous.includes(id) ? previous.filter((item) => item !== id) : [...previous, id],
     );
@@ -416,12 +440,33 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const startActivePickupFlow = async (pickupId: string) => {
     const target = routeStops.find((stop) => stop.id === pickupId || stop.pickupCode === pickupId);
     if (!target) return false;
+    // Bug 9 fix: never mutate the state object directly — build an immutable copy.
+    let updated = target;
     if (target.rawStatus === 'ASSIGNED') {
       const result = await fieldOpsApi.onTheWay(target.id);
       if (!result.success) return false;
-      target.rawStatus = 'ON_THE_WAY';
+      updated = { ...target, rawStatus: 'ON_THE_WAY' };
+      // Keep routeStops array in sync so list views also reflect the new status.
+      setRouteStops((previous) =>
+        previous.map((stop) => (stop.id === updated.id ? updated : stop)),
+      );
     }
-    setActivePickup(target);
+    // Fresh flow: clear any selection carried over from a previous pickup, then
+    // load the customer's booked categories so the catalog pre-selects them.
+    setSelectedCatalogIds([]);
+    setCollectedItems([]);
+    setPickupCategoryIds([]);
+    catalogAutoAppliedRef.current = false;
+    void (async () => {
+      const detail = await fieldOpsApi.getPickup(updated.id);
+      if (detail.success && detail.data) {
+        const categories = Array.isArray(detail.data.categories) ? detail.data.categories : [];
+        setPickupCategoryIds(
+          categories.map((category: any) => String(category?._id || category)).filter(Boolean),
+        );
+      }
+    })();
+    setActivePickup(updated);
     setShiftStatus('ON_PICKUP');
     setPickupStep('STEP_1_SCAN_QR');
     return true;
@@ -435,7 +480,7 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       incomingOrder, triggerIncomingOrderAlert, isLiveNavOpen, setIsLiveNavOpen, activeNavStop,
       setActiveNavStop, startLiveNavigation, playAlertChime, triggerVibration,
       hasUpdateAvailable, setHasUpdateAvailable, isReleaseNotesOpen, setIsReleaseNotesOpen,
-      pickupStep, setPickupStep, isFlashlightOn, setIsFlashlightOn, catalogItems,
+      pickupStep, setPickupStep, isFlashlightOn, setIsFlashlightOn, catalogItems, refreshCatalog,
       selectedCatalogIds, toggleCatalogItemSelection, collectedItems, updateCollectedItemWeight,
       removeCollectedItem: (id) => {
         setCollectedItems((previous) => previous.filter((item) => item.id !== id));

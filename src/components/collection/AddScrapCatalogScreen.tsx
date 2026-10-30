@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ChevronLeft,
   Search,
@@ -23,6 +23,7 @@ export const AddScrapCatalogScreen: React.FC<AddScrapCatalogScreenProps> = ({
 }) => {
   const {
     catalogItems,
+    refreshCatalog,
     selectedCatalogIds,
     toggleCatalogItemSelection,
     confirmCatalogSelectionToCart,
@@ -31,6 +32,12 @@ export const AddScrapCatalogScreen: React.FC<AddScrapCatalogScreenProps> = ({
 
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+
+  // The catalog loads once at login; re-fetch here when it came back empty
+  // (e.g. rates were configured after this session started).
+  useEffect(() => {
+    if (catalogItems.length === 0) void refreshCatalog();
+  }, [catalogItems.length, refreshCatalog]);
 
   const categories = ['All', ...Array.from(new Set(catalogItems.map((item) => item.category)))];
 

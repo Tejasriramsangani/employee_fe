@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ChevronLeft,
   Flashlight,
@@ -33,6 +33,9 @@ export const ScanCustomerQrScreen: React.FC<ScanCustomerQrScreenProps> = ({
 
   const stop = activePickup;
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  // useRef for the in-progress guard so the scanner callback always reads
+  // the latest value — a plain state variable would be stale inside the closure.
+  const verifyingRef = useRef(false);
   const [mode, setMode] = useState<'camera' | 'manual'>('camera');
   const [manualToken, setManualToken] = useState('');
   const [scanError, setScanError] = useState('');
@@ -44,8 +47,12 @@ export const ScanCustomerQrScreen: React.FC<ScanCustomerQrScreenProps> = ({
     else setPickupStep('IDLE');
   };
 
-  const verifyToken = async (qrToken: string) => {
-    if (!stop || !qrToken.trim()) return;
+  // Bug 5+6 fix: wrap in useCallback so the scanner useEffect closes over a
+  // stable function reference and no longer needs the eslint-disable comment.
+  const verifyToken = useCallback(async (qrToken: string) => {
+    // Bug 1 fix: use ref so the scanner callback always reads the live value.
+    if (!stop || !qrToken.trim() || verifyingRef.current) return;
+    verifyingRef.current = true;
     setVerifying(true);
     setScanError('');
     try {
@@ -64,7 +71,6 @@ export const ScanCustomerQrScreen: React.FC<ScanCustomerQrScreenProps> = ({
           const msg = (arrived.message || '').toLowerCase();
           if (!msg.includes('arrived') && !msg.includes('already')) {
             setScanError(arrived.message || 'Mark arrived first, then scan QR.');
-            setVerifying(false);
             return;
           }
         }
@@ -73,7 +79,6 @@ export const ScanCustomerQrScreen: React.FC<ScanCustomerQrScreenProps> = ({
       const verified = await fieldOpsApi.verifyQr(stop.id, qrToken.trim());
       if (!verified.success) {
         setScanError(verified.message || 'QR verification failed. Ask customer to refresh their QR.');
-        setVerifying(false);
         return;
       }
 
@@ -81,7 +86,6 @@ export const ScanCustomerQrScreen: React.FC<ScanCustomerQrScreenProps> = ({
       const started = await fieldOpsApi.startPickup(stop.id);
       if (!started.success) {
         setScanError(started.message || 'Verified, but could not start pickup.');
-        setVerifying(false);
         return;
       }
 
@@ -90,14 +94,20 @@ export const ScanCustomerQrScreen: React.FC<ScanCustomerQrScreenProps> = ({
     } catch (e: any) {
       setScanError(e?.message || 'Verification failed.');
     } finally {
+      verifyingRef.current = false;
       setVerifying(false);
     }
-  };
+  }, [stop, triggerVibration, onScanSuccess, setPickupStep]);
 
   useEffect(() => {
     if (mode !== 'camera' || !stop) return;
 
     const elementId = 'employee-qr-reader';
+
+    // Bug 3 fix: guard DOM existence before constructing the scanner.
+    // In React Strict Mode / fast remounts the div may not be in the DOM yet.
+    if (!document.getElementById(elementId)) return;
+
     let cancelled = false;
     const scanner = new Html5Qrcode(elementId);
     scannerRef.current = scanner;
@@ -107,16 +117,14 @@ export const ScanCustomerQrScreen: React.FC<ScanCustomerQrScreenProps> = ({
         { facingMode: 'environment' },
         { fps: 8, qrbox: { width: 240, height: 240 } },
         async (decoded) => {
-          if (cancelled || verifying) return;
-          try {
-            await scanner.pause(true);
-          } catch {
-            /* ignore */
-          }
+          // Bug 1 fix: read verifyingRef (not the stale `verifying` state).
+          if (cancelled || verifyingRef.current) return;
+          // scanner.pause() is synchronous — no await needed.
+          try { scanner.pause(true); } catch { /* ignore */ }
           await verifyToken(decoded);
         },
         () => {
-          /* ignore frame errors */
+          /* ignore per-frame decode errors */
         },
       )
       .then(() => {
@@ -132,14 +140,45 @@ export const ScanCustomerQrScreen: React.FC<ScanCustomerQrScreenProps> = ({
     return () => {
       cancelled = true;
       setCameraReady(false);
-      scanner
-        .stop()
-        .then(() => scanner.clear())
-        .catch(() => undefined);
+      const sc = scannerRef.current;
       scannerRef.current = null;
+      if (!sc) return;
+      // Bug 2 fix: html5-qrcode throws if .stop() is called while paused.
+      // resume() returns void per its typings, so use individual try/catch blocks.
+      (async () => {
+        try { sc.resume(); } catch { /* already stopped or never started */ }
+        // Give the MediaStream a tick to resume before stopping.
+        await new Promise((r) => setTimeout(r, 50));
+        try { sc.stop(); } catch { /* ignore */ }
+        try { sc.clear(); } catch { /* ignore */ }
+      })();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, stop?.id]);
+    // verifyToken is stable via useCallback — no eslint-disable needed.
+  }, [mode, stop?.id, verifyToken]);
+
+  // Bug 4 fix: apply real torch constraint to the camera track when the
+  // flashlight toggle changes. Gracefully ignored on unsupported devices.
+  useEffect(() => {
+    if (mode !== 'camera') return;
+    (async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' },
+        });
+        const track = stream.getVideoTracks()[0];
+        if (track) {
+          // 'torch' is not yet in standard TS lib types — cast to any.
+          await (track as any).applyConstraints({
+            advanced: [{ torch: isFlashlightOn }],
+          });
+          // Release this temporary stream — the scanner manages its own.
+          stream.getTracks().forEach((t) => t.stop());
+        }
+      } catch {
+        // Device does not support torch — silently ignore.
+      }
+    })();
+  }, [isFlashlightOn, mode]);
 
   if (!stop) {
     return (
@@ -178,7 +217,8 @@ export const ScanCustomerQrScreen: React.FC<ScanCustomerQrScreenProps> = ({
       <div className="px-4 pt-3 flex gap-2">
         <button
           type="button"
-          onClick={() => setMode('camera')}
+          // Bug 8 fix: clear stale error when switching modes.
+          onClick={() => { setMode('camera'); setScanError(''); }}
           className={`flex-1 py-2 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer ${
             mode === 'camera' ? 'bg-emerald-500 text-slate-950' : 'bg-white/10 text-white'
           }`}
@@ -187,7 +227,8 @@ export const ScanCustomerQrScreen: React.FC<ScanCustomerQrScreenProps> = ({
         </button>
         <button
           type="button"
-          onClick={() => setMode('manual')}
+          // Bug 8 fix: clear stale error when switching modes.
+          onClick={() => { setMode('manual'); setScanError(''); }}
           className={`flex-1 py-2 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer ${
             mode === 'manual' ? 'bg-emerald-500 text-slate-950' : 'bg-white/10 text-white'
           }`}
