@@ -21,6 +21,7 @@ import {
   Play,
   RotateCcw,
 } from 'lucide-react';
+import { SHOW_LIVE_NAV } from '../../lib/features';
 import { useEmployee, RouteStop } from '../../context/EmployeeContext';
 
 interface HomeScreenProps {
@@ -62,6 +63,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   };
 
   const handleStartNextPickup = (stop: RouteStop) => {
+    if (!SHOW_LIVE_NAV) {
+      // No in-app navigation: go straight into the pickup flow (marks the picker on the way, then QR scan).
+      onStartPickupFlow?.(stop.pickupCode);
+      return;
+    }
     setActivePickup(stop);
     setShiftStatus('ON_PICKUP');
     startLiveNavigation(stop);
@@ -488,7 +494,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
                   <span className="text-[9px] text-slate-400 font-bold uppercase block">Est. Weight</span>
                   <span className="font-bold text-emerald-800 text-xs mt-0.5 block">
-                    ~{selectedStopForDrawer.estimatedWeightKg} kg
+                    {selectedStopForDrawer.estimatedWeightLabel}
                   </span>
                 </div>
               </div>

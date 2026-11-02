@@ -19,6 +19,8 @@ import {
   IndianRupee,
   Weight,
 } from 'lucide-react';
+import { SHOW_LIVE_NAV } from '../../lib/features';
+import { openDirections } from '../../lib/maps';
 import { useEmployee, RouteStop } from '../../context/EmployeeContext';
 
 interface MyPickupsScreenProps {
@@ -92,8 +94,7 @@ export const MyPickupsScreen: React.FC<MyPickupsScreenProps> = ({
 
   const handleOpenGoogleMaps = (e: React.MouseEvent, stop: RouteStop) => {
     e.stopPropagation();
-    const query = encodeURIComponent(`${stop.address}, ${stop.locality}`);
-    window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank');
+    openDirections(stop);
   };
 
   const handleStartCollectionFromModal = async (stop: RouteStop) => {
@@ -207,7 +208,8 @@ export const MyPickupsScreen: React.FC<MyPickupsScreenProps> = ({
             {/* Bottom: meta + status-aware action hint */}
             <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
               <span className="text-[11px] text-slate-400 font-medium">
-                ~{stop.estimatedWeightKg} kg • {stop.itemsCategoryHint}
+                {stop.estimatedWeightLabel}
+                {stop.itemsCategoryHint ? ` • ${stop.itemsCategoryHint}` : ''}
               </span>
 
               {stop.status === 'COMPLETED' ? (
@@ -292,14 +294,14 @@ export const MyPickupsScreen: React.FC<MyPickupsScreenProps> = ({
                 <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
                   <span className="text-[9px] text-slate-400 font-bold uppercase block">Est. Weight</span>
                   <span className="font-bold text-emerald-800 text-xs mt-0.5 block">
-                    ~{scheduledStop.estimatedWeightKg} kg
+                    {scheduledStop.estimatedWeightLabel}
                   </span>
                 </div>
               </div>
             </div>
 
             {/* Map actions */}
-            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+            <div className={`grid ${SHOW_LIVE_NAV ? 'grid-cols-2' : 'grid-cols-1'} gap-2 pt-2 border-t border-slate-100`}>
               <button
                 type="button"
                 onClick={(e) => {
@@ -311,18 +313,20 @@ export const MyPickupsScreen: React.FC<MyPickupsScreenProps> = ({
                 <span>Google Maps</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  const s = scheduledStop;
-                  setScheduledStop(null);
-                  startLiveNavigation(s);
-                }}
-                className="py-2.5 rounded-xl bg-[#0A3D2B] text-white font-bold text-xs hover:bg-[#0E4D36] flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
-              >
-                <Compass className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Live Nav</span>
-              </button>
+              {SHOW_LIVE_NAV && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const s = scheduledStop;
+                    setScheduledStop(null);
+                    startLiveNavigation(s);
+                  }}
+                  className="py-2.5 rounded-xl bg-[#0A3D2B] text-white font-bold text-xs hover:bg-[#0E4D36] flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+                >
+                  <Compass className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Live Nav</span>
+                </button>
+              )}
             </div>
 
             {/* Start collection CTA */}

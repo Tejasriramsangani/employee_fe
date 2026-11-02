@@ -10,9 +10,12 @@ import {
   Keyboard,
   Loader2,
 } from 'lucide-react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
 import { useEmployee } from '../../context/EmployeeContext';
 import { fieldOpsApi } from '../../services/api';
+
+/** Resolves when the previous camera scanner has fully stopped; the next one starts after it. */
+let scannerTeardown: Promise<void> = Promise.resolve();
 
 interface ScanCustomerQrScreenProps {
   onScanSuccess?: () => void;
@@ -99,86 +102,87 @@ export const ScanCustomerQrScreen: React.FC<ScanCustomerQrScreenProps> = ({
     }
   }, [stop, triggerVibration, onScanSuccess, setPickupStep]);
 
+  // Always call the latest verifyToken without making it an effect dependency. verifyToken changes
+  // whenever the pickup object refreshes, and restarting the camera each time is what caused the
+  // "play() interrupted" / removeChild crashes.
+  const verifyTokenRef = useRef(verifyToken);
+  useEffect(() => {
+    verifyTokenRef.current = verifyToken;
+  }, [verifyToken]);
+
+  // Camera lifecycle. html5-qrcode start/stop are async and share one container element, so every
+  // start waits for the previous teardown (React Strict Mode and fast remounts run effects back to
+  // back), and teardown waits for start() to finish before stopping.
   useEffect(() => {
     if (mode !== 'camera' || !stop) return;
 
     const elementId = 'employee-qr-reader';
-
-    // Bug 3 fix: guard DOM existence before constructing the scanner.
-    // In React Strict Mode / fast remounts the div may not be in the DOM yet.
-    if (!document.getElementById(elementId)) return;
-
     let cancelled = false;
-    const scanner = new Html5Qrcode(elementId);
-    scannerRef.current = scanner;
+    let scanner: Html5Qrcode | null = null;
 
-    scanner
-      .start(
-        { facingMode: 'environment' },
-        { fps: 8, qrbox: { width: 240, height: 240 } },
-        async (decoded) => {
-          // Bug 1 fix: read verifyingRef (not the stale `verifying` state).
-          if (cancelled || verifyingRef.current) return;
-          // scanner.pause() is synchronous — no await needed.
-          try { scanner.pause(true); } catch { /* ignore */ }
-          await verifyToken(decoded);
-        },
-        () => {
-          /* ignore per-frame decode errors */
-        },
-      )
-      .then(() => {
+    const running = scannerTeardown.then(async () => {
+      if (cancelled || !document.getElementById(elementId)) return;
+      scanner = new Html5Qrcode(elementId);
+      scannerRef.current = scanner;
+      try {
+        await scanner.start(
+          { facingMode: 'environment' },
+          { fps: 8, qrbox: { width: 240, height: 240 } },
+          async (decoded) => {
+            if (cancelled || verifyingRef.current) return;
+            try { scanner?.pause(true); } catch { /* ignore */ }
+            await verifyTokenRef.current(decoded);
+          },
+          () => {
+            /* ignore per-frame decode errors */
+          },
+        );
         if (!cancelled) setCameraReady(true);
-      })
-      .catch(() => {
+      } catch {
         if (!cancelled) {
           setScanError('Camera unavailable. Use manual code entry instead.');
           setMode('manual');
         }
-      });
+      }
+    });
 
     return () => {
       cancelled = true;
       setCameraReady(false);
-      const sc = scannerRef.current;
-      scannerRef.current = null;
-      if (!sc) return;
-      // Bug 2 fix: html5-qrcode throws if .stop() is called while paused.
-      // resume() returns void per its typings, so use individual try/catch blocks.
-      (async () => {
-        try { sc.resume(); } catch { /* already stopped or never started */ }
-        // Give the MediaStream a tick to resume before stopping.
-        await new Promise((r) => setTimeout(r, 50));
-        try { sc.stop(); } catch { /* ignore */ }
-        try { sc.clear(); } catch { /* ignore */ }
-      })();
-    };
-    // verifyToken is stable via useCallback — no eslint-disable needed.
-  }, [mode, stop?.id, verifyToken]);
-
-  // Bug 4 fix: apply real torch constraint to the camera track when the
-  // flashlight toggle changes. Gracefully ignored on unsupported devices.
-  useEffect(() => {
-    if (mode !== 'camera') return;
-    (async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' },
-        });
-        const track = stream.getVideoTracks()[0];
-        if (track) {
-          // 'torch' is not yet in standard TS lib types — cast to any.
-          await (track as any).applyConstraints({
-            advanced: [{ torch: isFlashlightOn }],
-          });
-          // Release this temporary stream — the scanner manages its own.
-          stream.getTracks().forEach((t) => t.stop());
+      scannerTeardown = running.then(async () => {
+        const sc = scanner;
+        if (!sc) return;
+        if (scannerRef.current === sc) scannerRef.current = null;
+        try {
+          const state = sc.getState();
+          // stop() throws while paused, so resume first.
+          if (state === Html5QrcodeScannerState.PAUSED) sc.resume();
+          if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+            await sc.stop();
+          }
+        } catch {
+          /* already stopped */
         }
-      } catch {
-        // Device does not support torch — silently ignore.
-      }
-    })();
-  }, [isFlashlightOn, mode]);
+        try {
+          // Only touch the container if React has not already removed it.
+          if (document.getElementById(elementId)) await sc.clear();
+        } catch {
+          /* container already cleaned up */
+        }
+      });
+    };
+  }, [mode, stop?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Torch: apply it to the scanner's own camera track. (The old code opened a second camera stream
+  // on every toggle, which fought the scanner for the camera.) Ignored on devices without a torch.
+  useEffect(() => {
+    if (mode !== 'camera' || !cameraReady) return;
+    scannerRef.current
+      ?.applyVideoConstraints({ advanced: [{ torch: isFlashlightOn } as MediaTrackConstraintSet] })
+      .catch(() => {
+        /* device does not support torch */
+      });
+  }, [isFlashlightOn, mode, cameraReady]);
 
   if (!stop) {
     return (

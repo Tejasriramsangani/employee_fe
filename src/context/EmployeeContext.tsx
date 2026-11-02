@@ -1,10 +1,13 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { fieldOpsApi } from '../services/api';
+import { fieldOpsApi, AppNotificationItem } from '../services/api';
+import { SHOW_LIVE_NAV } from '../lib/features';
+import { openDirections } from '../lib/maps';
+import { enablePush, disablePush, onPushOpen, PUSH_RECEIVED_EVENT } from '../lib/push';
 
 export type ShiftStatus = 'AVAILABLE' | 'ON_PICKUP' | 'COMPLETED';
-export type AppTab = 'HOME' | 'MY_PICKUPS' | 'PROFILE';
+export type AppTab = 'HOME' | 'MY_PICKUPS' | 'NOTIFICATIONS' | 'PROFILE';
 export type PaymentMethod = 'CASH' | 'UPI';
 
 export interface RouteStop {
@@ -20,6 +23,11 @@ export interface RouteStop {
   locality: string;
   landmark: string;
   estimatedWeightKg: number;
+  /** The customer's chosen range as booked, e.g. "10 – 20 kg". Shown instead of a computed midpoint. */
+  estimatedWeightLabel: string;
+  /** Customer's saved GPS pin, used for map directions. */
+  latitude?: number;
+  longitude?: number;
   itemsCategoryHint: string;
   status: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED';
   rawStatus: string;
@@ -79,12 +87,15 @@ export interface ScrapCatalogItem {
   ratePerKg: number;
   unit: string;
   iconType: string;
+  /** Admin-configured emoji (product → category fallback). */
+  emoji: string;
 }
 
 export interface CollectedScrapItem {
   id: string;
   name: string;
   category: string;
+  emoji?: string;
   ratePerKg: number;
   weightKg: number;
   lineTotalRupees: number;
@@ -151,6 +162,14 @@ interface EmployeeContextType {
   setPaymentMethod: (method: PaymentMethod) => void;
   lastCompletion: CompletionState | null;
   setLastCompletion: (completion: CompletionState | null) => void;
+  notifications: AppNotificationItem[];
+  unreadNotificationCount: number;
+  refreshNotifications: () => Promise<void>;
+  markNotificationRead: (id: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
+  /** Newest notification that just arrived (shown as a banner until dismissed). */
+  toastNotification: AppNotificationItem | null;
+  dismissToastNotification: () => void;
 }
 
 const EMPTY_PROFILE: EmployeeProfile = {
@@ -192,23 +211,33 @@ const mapPickup = (pickup: any, sequence: number): RouteStop => {
   const totals = pickup?.totals || {};
   const minKg = Number(estimate.minGrams || 0) / 1000;
   const maxKg = Number(estimate.maxGrams || 0) / 1000;
-  const estimatedWeightKg = maxKg ? Number(((minKg + maxKg) / 2).toFixed(1)) : minKg;
+  // The top "50+ kg" range is stored with a huge maxGrams, so a midpoint would read ~5000 kg: only
+  // average real, bounded ranges.
+  const estimatedWeightKg = maxKg && maxKg <= 1000 ? Number(((minKg + maxKg) / 2).toFixed(1)) : minKg;
+  const estimatedWeightLabel = estimate.displayLabel || (minKg ? `${minKg}+ kg` : '—');
+  const coords = address.location?.coordinates;
+  const longitude = Number(coords?.[0]);
+  const latitude = Number(coords?.[1]);
   return {
     id: String(pickup?._id || pickup?.id || ''),
     stopNumber: sequence,
     pickupCode: pickup?.pickupCode || '—',
     customerId: String(pickup?.customerId || '—'),
-    customerName: address.name || address.customerName || '—',
-    phone: address.phone || address.mobile || '—',
+    customerName: pickup?.customerName || address.name || address.customerName || 'Customer',
+    phone: pickup?.customerPhone || address.phone || address.mobile || '—',
     timeSlot: pickup?.timeSlotSnapshot?.displayLabel || '—',
     scheduledTime: pickup?.timeSlotSnapshot?.startTime || '—',
     address: [address.line1, address.line2].filter(Boolean).join(', ') || '—',
     locality: [address.city, address.state, address.pincode].filter(Boolean).join(', ') || '—',
     landmark: address.landmark || '',
     estimatedWeightKg,
-    itemsCategoryHint:
-      pickup?.estimatedWeightSnapshot?.displayLabel ||
-      (Array.isArray(pickup?.categories) ? pickup.categories.map((item: any) => item.name || item).join(', ') : '—'),
+    estimatedWeightLabel,
+    latitude: Number.isFinite(latitude) ? latitude : undefined,
+    longitude: Number.isFinite(longitude) ? longitude : undefined,
+    // Category names only when the API sent them populated (otherwise these would be raw ids).
+    itemsCategoryHint: Array.isArray(pickup?.categories)
+      ? pickup.categories.map((item: any) => item?.name).filter(Boolean).join(', ')
+      : '',
     status: mapStatus(pickup?.status),
     rawStatus: pickup?.status || '',
     completedAt: pickup?.timestamps?.completedAt,
@@ -219,6 +248,10 @@ const mapPickup = (pickup: any, sequence: number): RouteStop => {
 
 export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [notifications, setNotifications] = useState<AppNotificationItem[]>([]);
+  const [toastNotification, setToastNotification] = useState<AppNotificationItem | null>(null);
+  const seenNotificationIdsRef = useRef<Set<string>>(new Set());
+  const notificationsPrimedRef = useRef(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [profile, setProfile] = useState<EmployeeProfile>(EMPTY_PROFILE);
   const [routeTitle, setRouteTitle] = useState('Today’s route');
@@ -260,9 +293,32 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           ratePerKg: Number(product.activeRate.ratePerKgRupees || 0),
           unit: 'kg',
           iconType: String(product.code || product.name || '').toLowerCase(),
+          emoji: String(product.emoji || category.emoji || ''),
         })),
     );
     setCatalogItems(flattened);
+
+    // Keep an in-progress collection in sync with admin changes: drop items whose
+    // product was disabled and refresh rates (margin-inclusive) of the rest.
+    if (flattened.length > 0) {
+      const byId = new Map(flattened.map((item: ScrapCatalogItem) => [item.id, item]));
+      setSelectedCatalogIds((previous) => previous.filter((id) => byId.has(id)));
+      setCollectedItems((previous) =>
+        previous
+          .filter((item) => byId.has(item.id))
+          .map((item) => {
+            const live = byId.get(item.id)!;
+            return {
+              ...item,
+              name: live.name,
+              category: live.category,
+              emoji: live.emoji,
+              ratePerKg: live.ratePerKg,
+              lineTotalRupees: Number((item.weightKg * live.ratePerKg).toFixed(2)),
+            };
+          }),
+      );
+    }
   }, []);
 
   const refreshDashboardData = useCallback(async () => {
@@ -336,6 +392,8 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [refreshDashboardData]);
 
   const logout = () => {
+    // Must run before the tokens are removed below: the request needs them.
+    disablePush((token) => fieldOpsApi.unregisterDevice(token));
     if (typeof window !== 'undefined') {
       localStorage.removeItem('aslikaata_emp_token');
       localStorage.removeItem('aslikaata_emp_refresh_token');
@@ -348,6 +406,10 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setCollectedItems([]);
     setSelectedCatalogIds([]);
     setLastCompletion(null);
+    setNotifications([]);
+    setToastNotification(null);
+    seenNotificationIdsRef.current = new Set();
+    notificationsPrimedRef.current = false;
   };
 
   const addRouteExpense = (item: { category: string; amount: number; notes: string; receiptAttached?: boolean }) => {
@@ -380,7 +442,7 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (existing) return [existing];
         const product = catalogItems.find((item) => item.id === id);
         return product
-          ? [{ id: product.id, name: product.name, category: product.category, ratePerKg: product.ratePerKg, weightKg: 0, lineTotalRupees: 0 }]
+          ? [{ id: product.id, name: product.name, category: product.category, emoji: product.emoji, ratePerKg: product.ratePerKg, weightKg: 0, lineTotalRupees: 0 }]
           : [];
       }),
     );
@@ -431,6 +493,12 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const startLiveNavigation = (stop: RouteStop) => {
+    if (!SHOW_LIVE_NAV) {
+      // In-app navigation is off for now: "Navigate" opens Google Maps directions to the customer.
+      setActivePickup(stop);
+      openDirections(stop);
+      return;
+    }
     setActiveNavStop(stop);
     setActivePickup(stop);
     setIsLiveNavOpen(true);
@@ -472,6 +540,83 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return true;
   };
 
+  // --- Notifications: poll while signed in, banner for new ones, refresh the route when a
+  // pickup is assigned / moved / cancelled.
+  const refreshNotifications = useCallback(async () => {
+    const data = await fieldOpsApi.fetchNotifications();
+    if (!data) return;
+    setNotifications(data.items);
+
+    const fresh = data.items.filter((n) => !seenNotificationIdsRef.current.has(n.id));
+    data.items.forEach((n) => seenNotificationIdsRef.current.add(n.id));
+    const newestUnread = fresh.find((n) => !n.readAt);
+
+    // First load after login: banner only for something still unread (e.g. the welcome message).
+    if (newestUnread) {
+      setToastNotification(newestUnread);
+      if (notificationsPrimedRef.current) {
+        try {
+          navigator.vibrate?.([200, 100, 200]);
+        } catch {
+          /* vibration is optional */
+        }
+        if (fresh.some((n) => n.type.startsWith('PICKUP_'))) void refreshDashboardData();
+      }
+    }
+    notificationsPrimedRef.current = true;
+  }, [refreshDashboardData]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    void refreshNotifications();
+    const timer = setInterval(() => void refreshNotifications(), 15000);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void refreshNotifications();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [isAuthenticated, refreshNotifications]);
+
+  // Native push (Android app only; no-op in a browser): register this phone while signed in,
+  // refresh when a push lands with the app open, and open the inbox when one is tapped.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    void enablePush((token, platform) => fieldOpsApi.registerDevice(token, platform));
+    const onReceived = () => {
+      void refreshNotifications();
+      void refreshDashboardData();
+    };
+    window.addEventListener(PUSH_RECEIVED_EVENT, onReceived);
+    const offOpen = onPushOpen(() => setActiveTab('NOTIFICATIONS'));
+    return () => {
+      window.removeEventListener(PUSH_RECEIVED_EVENT, onReceived);
+      offOpen();
+    };
+  }, [isAuthenticated, refreshNotifications, refreshDashboardData]);
+
+  // Auto-hide the banner after a few seconds.
+  useEffect(() => {
+    if (!toastNotification) return;
+    const t = setTimeout(() => setToastNotification(null), 7000);
+    return () => clearTimeout(t);
+  }, [toastNotification]);
+
+  const markNotificationRead = async (id: string) => {
+    setNotifications((prev) => prev.map((n) => (n.id === id && !n.readAt ? { ...n, readAt: new Date().toISOString() } : n)));
+    await fieldOpsApi.markNotificationRead(id);
+  };
+
+  const markAllNotificationsRead = async () => {
+    const now = new Date().toISOString();
+    setNotifications((prev) => prev.map((n) => (n.readAt ? n : { ...n, readAt: now })));
+    await fieldOpsApi.markAllNotificationsRead();
+  };
+
+  const unreadNotificationCount = notifications.filter((n) => !n.readAt).length;
+
   return (
     <EmployeeContext.Provider value={{
       isAuthenticated, setIsAuthenticated, isLoadingAuth, logout, refreshDashboardData,
@@ -494,6 +639,9 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       },
       isOfflineCached: false, simulateHomeState: setShiftStatus, startActivePickupFlow,
       paymentMethod, setPaymentMethod, lastCompletion, setLastCompletion,
+      notifications, unreadNotificationCount, refreshNotifications, markNotificationRead,
+      markAllNotificationsRead, toastNotification,
+      dismissToastNotification: () => setToastNotification(null),
     }}>
       {children}
     </EmployeeContext.Provider>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ChevronLeft,
   X,
@@ -32,8 +32,15 @@ export const AddedItemsWeightScreen: React.FC<AddedItemsWeightScreenProps> = ({
     totalCollectedValueRupees,
     setPickupStep,
     activePickup,
+    refreshCatalog,
   } = useEmployee();
   const [submitError, setSubmitError] = useState('');
+
+  // Pull the latest enabled products and margin-inclusive rates when this screen
+  // opens; the context drops disabled items and re-prices the rest.
+  useEffect(() => {
+    void refreshCatalog();
+  }, [refreshCatalog]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleCheckout = async () => {
@@ -77,18 +84,6 @@ export const AddedItemsWeightScreen: React.FC<AddedItemsWeightScreenProps> = ({
     } else {
       setPickupStep('STEP_4_CATALOG');
     }
-  };
-
-  const getItemEmoji = (name: string) => {
-    const n = name.toLowerCase();
-    if (n.includes('cardboard')) return '📦';
-    if (n.includes('bottle') || n.includes('pet')) return '🧴';
-    if (n.includes('iron') || n.includes('metal')) return '🔩';
-    if (n.includes('newspaper') || n.includes('paper')) return '📰';
-    if (n.includes('aluminium')) return '🥫';
-    if (n.includes('e-waste')) return '💻';
-    if (n.includes('copper')) return '🪙';
-    return '♻️';
   };
 
   return (
@@ -136,7 +131,7 @@ export const AddedItemsWeightScreen: React.FC<AddedItemsWeightScreenProps> = ({
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-center text-2xl shrink-0 shadow-inner">
-                      {getItemEmoji(item.name)}
+                      {item.emoji || '♻️'}
                     </div>
                     <div>
                       <div className="font-bold text-xs text-slate-900">

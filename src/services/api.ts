@@ -6,6 +6,50 @@ export interface ApiResult<T> {
   success: boolean;
   data?: T;
   message?: string;
+  /** Machine-readable error info from the backend, e.g. { code: 'EMPLOYEE_ACCOUNT_NOT_FOUND' }. */
+  details?: { code?: string; [key: string]: any } | null;
+  status?: number;
+}
+
+export interface PickerRequestPayload {
+  fullName: string;
+  mobile: string;
+  alternateMobile?: string;
+  email?: string;
+  address: {
+    line1: string;
+    area: string;
+    landmark?: string;
+    city: string;
+    district?: string;
+    state?: string;
+    pincode: string;
+  };
+  workType: 'FIELD_COLLECTOR' | 'DRIVER';
+  vehicleType: 'NONE' | 'BICYCLE' | 'BIKE' | 'E_RICKSHAW' | 'AUTO' | 'MINI_TRUCK';
+  vehicleNumber?: string;
+  experienceYears?: number;
+  availability: 'FULL_TIME' | 'PART_TIME' | 'WEEKENDS';
+  about?: string;
+}
+
+export interface PickerRequestStatusInfo {
+  found: boolean;
+  requestCode?: string;
+  status?: 'PENDING' | 'APPROVED' | 'REJECTED';
+  submittedAt?: string;
+  reviewedAt?: string | null;
+  rejectionReason?: string | null;
+}
+
+export interface AppNotificationItem {
+  id: string;
+  type: 'PICKUP_ASSIGNED' | 'PICKUP_RESCHEDULED' | 'PICKUP_CANCELLED' | 'ACCOUNT_APPROVED' | 'GENERAL';
+  title: string;
+  body: string;
+  data: Record<string, any>;
+  readAt: string | null;
+  createdAt: string;
 }
 
 type ServerStatusListener = (isDown: boolean, details?: string) => void;
@@ -43,7 +87,9 @@ class FieldOpsApiService {
     localStorage.removeItem('aslikaata_emp_user');
   }
 
-  private async parse<T>(response: Response): Promise<{ data?: T; message?: string }> {
+  private async parse<T>(
+    response: Response,
+  ): Promise<{ data?: T; message?: string; details?: ApiResult<T>['details'] }> {
     let json: any;
     try {
       json = await response.json();
@@ -56,6 +102,7 @@ class FieldOpsApiService {
         json?.error?.message ||
         json?.message ||
         (typeof json?.error === 'string' ? json.error : undefined),
+      details: json?.error?.details && typeof json.error.details === 'object' ? json.error.details : null,
     };
   }
 
@@ -86,6 +133,8 @@ class FieldOpsApiService {
         return {
           success: false,
           message: parsed.message || `Request failed with HTTP ${response.status}`,
+          details: parsed.details,
+          status: response.status,
         };
       }
       this.notifyStatus(false);
@@ -115,11 +164,13 @@ class FieldOpsApiService {
   }
 
   sendOtp(mobile: string) {
-    return this.request<{ message: string; cooldownSeconds: number }>(
+    // `devOtp` is only returned by the backend while SMS_PROVIDER=mock outside production.
+    return this.request<{ message: string; cooldownSeconds: number; devOtp?: string }>(
       '/auth/otp/send',
       {
         method: 'POST',
-        body: JSON.stringify({ mobile: normalizeMobile(mobile), purpose: 'LOGIN' }),
+        // loginRole: the backend refuses (404 EMPLOYEE_ACCOUNT_NOT_FOUND) when this number has no field account.
+        body: JSON.stringify({ mobile: normalizeMobile(mobile), purpose: 'LOGIN', loginRole: 'EMPLOYEE' }),
       },
       false,
     );
@@ -139,6 +190,58 @@ class FieldOpsApiService {
       },
       false,
     );
+  }
+
+  // --- "Become a freelance picker" (public: the applicant has no account yet) ---
+
+  submitPickerRequest(payload: PickerRequestPayload) {
+    return this.request<{ requestCode: string; status: string; message: string }>(
+      '/picker-requests',
+      { method: 'POST', body: JSON.stringify(payload) },
+      false,
+    );
+  }
+
+  pickerRequestStatus(mobile: string) {
+    return this.request<PickerRequestStatusInfo>(
+      `/picker-requests/status?mobile=${encodeURIComponent(normalizeMobile(mobile))}`,
+      {},
+      false,
+    );
+  }
+
+  // --- Push notification device registration ---
+
+  registerDevice(token: string, platform: 'ANDROID' | 'IOS') {
+    return this.request<{ registered: boolean }>('/devices', {
+      method: 'POST',
+      body: JSON.stringify({ token, platform }),
+    });
+  }
+
+  unregisterDevice(token: string) {
+    return this.request<{ unregistered: boolean }>(
+      '/devices',
+      { method: 'DELETE', body: JSON.stringify({ token }) },
+      false,
+    );
+  }
+
+  // --- In-app notifications ---
+
+  async fetchNotifications(limit = 40) {
+    const result = await this.request<{ items: AppNotificationItem[]; unreadCount: number }>(
+      `/employee/notifications?limit=${limit}`,
+    );
+    return result.success && result.data ? result.data : null;
+  }
+
+  markNotificationRead(id: string) {
+    return this.request<{ unreadCount: number }>(`/employee/notifications/${id}/read`, { method: 'POST' });
+  }
+
+  markAllNotificationsRead() {
+    return this.request<{ unreadCount: number }>('/employee/notifications/read-all', { method: 'POST' });
   }
 
   async refreshToken() {

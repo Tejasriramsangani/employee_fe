@@ -1,17 +1,17 @@
 "use client";
 
 import React from 'react';
-import { Home, ClipboardList, User, ShieldCheck } from 'lucide-react';
+import { Home, ClipboardList, User, Bell } from 'lucide-react';
 import { useEmployee, AppTab } from '../../context/EmployeeContext';
 
 export const BottomNavBar: React.FC = () => {
-  const { activeTab, setActiveTab, routeStops } = useEmployee();
+  const { activeTab, setActiveTab, routeStops, unreadNotificationCount } = useEmployee();
 
   const scheduledCount = routeStops.filter((s) => s.status !== 'COMPLETED').length;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 max-w-[440px] mx-auto bg-white border-t border-slate-200/90 shadow-[0_-4px_16px_rgba(0,0,0,0.04)] px-4 py-2">
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-4 gap-2">
         {/* Tab 1: Home */}
         <button
           type="button"
@@ -49,7 +49,28 @@ export const BottomNavBar: React.FC = () => {
           </span>
         </button>
 
-        {/* Tab 3: Profile */}
+        {/* Tab 3: Notifications */}
+        <button
+          type="button"
+          onClick={() => setActiveTab('NOTIFICATIONS')}
+          className={`flex flex-col items-center justify-center py-1 rounded-xl transition-all cursor-pointer ${
+            activeTab === 'NOTIFICATIONS' ? 'text-[#0A3D2B]' : 'text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          <div className="relative">
+            <Bell className={`w-5 h-5 transition-transform ${activeTab === 'NOTIFICATIONS' ? 'scale-110 stroke-[2.5]' : ''}`} />
+            {unreadNotificationCount > 0 && (
+              <span className="absolute -top-1.5 -right-2.5 min-w-[16px] px-1 rounded-full bg-rose-600 text-white font-mono font-bold text-[9px] leading-4 text-center shadow-xs">
+                {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
+              </span>
+            )}
+          </div>
+          <span className={`text-[11px] mt-1 font-semibold ${activeTab === 'NOTIFICATIONS' ? 'font-black text-[#0A3D2B]' : ''}`}>
+            Alerts
+          </span>
+        </button>
+
+        {/* Tab 4: Profile */}
         <button
           type="button"
           onClick={() => setActiveTab('PROFILE')}

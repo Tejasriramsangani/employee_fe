@@ -10,7 +10,7 @@ import {
   Layers,
   Sparkles,
 } from 'lucide-react';
-import { useEmployee, ScrapCatalogItem } from '../../context/EmployeeContext';
+import { useEmployee } from '../../context/EmployeeContext';
 
 interface AddScrapCatalogScreenProps {
   onDone?: () => void;
@@ -33,11 +33,11 @@ export const AddScrapCatalogScreen: React.FC<AddScrapCatalogScreenProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
-  // The catalog loads once at login; re-fetch here when it came back empty
-  // (e.g. rates were configured after this session started).
+  // Always re-fetch when this screen opens so categories/products the admin
+  // enabled, hidden or re-priced (margin included) since login show up live.
   useEffect(() => {
-    if (catalogItems.length === 0) void refreshCatalog();
-  }, [catalogItems.length, refreshCatalog]);
+    void refreshCatalog();
+  }, [refreshCatalog]);
 
   const categories = ['All', ...Array.from(new Set(catalogItems.map((item) => item.category)))];
 
@@ -65,78 +65,6 @@ export const AddScrapCatalogScreen: React.FC<AddScrapCatalogScreenProps> = ({
       onBack();
     } else {
       setPickupStep('STEP_2_VERIFIED');
-    }
-  };
-
-  // Helper to render illustrative visual emoji/icons for items
-  const getItemThumbnail = (item: ScrapCatalogItem) => {
-    switch (item.iconType) {
-      case 'newspaper':
-        return (
-          <div className="w-11 h-11 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-xl shrink-0">
-            📰
-          </div>
-        );
-      case 'cardboard':
-        return (
-          <div className="w-11 h-11 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-xl shrink-0">
-            📦
-          </div>
-        );
-      case 'pet_bottles':
-        return (
-          <div className="w-11 h-11 rounded-xl bg-sky-50 border border-sky-200 flex items-center justify-center text-xl shrink-0">
-            🧴
-          </div>
-        );
-      case 'mixed_plastic':
-        return (
-          <div className="w-11 h-11 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-center text-xl shrink-0">
-            🪣
-          </div>
-        );
-      case 'iron':
-        return (
-          <div className="w-11 h-11 rounded-xl bg-slate-200 border border-slate-300 flex items-center justify-center text-xl shrink-0">
-            🔩
-          </div>
-        );
-      case 'aluminium':
-        return (
-          <div className="w-11 h-11 rounded-xl bg-cyan-50 border border-cyan-200 flex items-center justify-center text-xl shrink-0">
-            🥫
-          </div>
-        );
-      case 'ewaste':
-        return (
-          <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-xl shrink-0">
-            💻
-          </div>
-        );
-      case 'copper':
-        return (
-          <div className="w-11 h-11 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-center text-xl shrink-0">
-            🪙
-          </div>
-        );
-      case 'brass':
-        return (
-          <div className="w-11 h-11 rounded-xl bg-yellow-50 border border-yellow-200 flex items-center justify-center text-xl shrink-0">
-            🎺
-          </div>
-        );
-      case 'tyres':
-        return (
-          <div className="w-11 h-11 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-xl shrink-0">
-            🛞
-          </div>
-        );
-      default:
-        return (
-          <div className="w-11 h-11 rounded-xl bg-slate-100 flex items-center justify-center text-xl shrink-0">
-            ♻️
-          </div>
-        );
     }
   };
 
@@ -225,7 +153,9 @@ export const AddScrapCatalogScreen: React.FC<AddScrapCatalogScreenProps> = ({
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    {getItemThumbnail(item)}
+                    <div className="w-11 h-11 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-xl shrink-0">
+                      {item.emoji || '♻️'}
+                    </div>
                     <div className="min-w-0">
                       <div className="font-bold text-xs text-slate-900 truncate">
                         {item.name}

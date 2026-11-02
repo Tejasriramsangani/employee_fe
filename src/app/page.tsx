@@ -7,6 +7,8 @@ import { BottomNavBar } from '../components/layout/BottomNavBar';
 import { HomeScreen } from '../components/home/HomeScreen';
 import { MyPickupsScreen } from '../components/pickups/MyPickupsScreen';
 import { ProfileScreen } from '../components/profile/ProfileScreen';
+import { NotificationsScreen } from '../components/notifications/NotificationsScreen';
+import { NotificationToast } from '../components/notifications/NotificationToast';
 import { LiveRouteNavigationScreen } from '../components/navigation/LiveRouteNavigationScreen';
 import { IncomingPickupAlertModal } from '../components/navigation/IncomingPickupAlertModal';
 import { ScanCustomerQrScreen } from '../components/verification/ScanCustomerQrScreen';
@@ -184,6 +186,8 @@ function EmployeeAppContent() {
             />
           )}
 
+          {activeTab === 'NOTIFICATIONS' && <NotificationsScreen />}
+
           {activeTab === 'PROFILE' && <ProfileScreen />}
 
           {/* Persistent Mobile Bottom Navigation Bar */}
@@ -193,6 +197,9 @@ function EmployeeAppContent() {
 
       {/* Real-time Uber / Rapido Dispatch Alert Overlay */}
       <IncomingPickupAlertModal />
+
+      {/* Banner for newly arrived notifications (new pickup assigned, approvals, ...) */}
+      <NotificationToast />
     </MobileFrameShell>
   );
 }

@@ -394,7 +394,7 @@ export const LiveRouteNavigationScreen: React.FC<LiveRouteNavigationScreenProps>
                   {stop.customerName}
                 </h3>
                 <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                  ~{stop.estimatedWeightKg} kg
+                  {stop.estimatedWeightLabel}
                 </span>
               </div>
               <p className="text-xs text-slate-400 truncate mt-0.5">
