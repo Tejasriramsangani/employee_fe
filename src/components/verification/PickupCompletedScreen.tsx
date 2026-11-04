@@ -210,7 +210,7 @@ export const PickupCompletedScreen: React.FC<PickupCompletedScreenProps> = ({ on
               <div className="flex items-center gap-1.5">
                 <span className="font-bold text-slate-900">{paymentMethod === 'CASH' ? 'Cash' : 'UPI'}</span>
                 <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-[#0A3D2B] text-[10px] font-black uppercase">
-                  Received
+                  Paid
                 </span>
               </div>
             </div>

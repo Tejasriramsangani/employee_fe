@@ -6,6 +6,8 @@ import { SHOW_LIVE_NAV } from '../lib/features';
 import { openDirections } from '../lib/maps';
 import { enablePush, disablePush, onPushOpen, PUSH_RECEIVED_EVENT } from '../lib/push';
 
+const NAVIGATED_KEY = 'aslikaata_emp_navigated';
+
 export type ShiftStatus = 'AVAILABLE' | 'ON_PICKUP' | 'COMPLETED';
 export type AppTab = 'HOME' | 'MY_PICKUPS' | 'NOTIFICATIONS' | 'PROFILE';
 export type PaymentMethod = 'CASH' | 'UPI';
@@ -60,6 +62,24 @@ export interface EmployeeProfile {
   kycVerified: boolean;
   fixedDailyWageRupees: number;
   incentivePerKgRupees: number;
+  /** Account status from the server: APPROVED, SUSPENDED, ... */
+  status: string;
+  memberSince: string | null;
+  approvedAt: string | null;
+  /** Home area from the picker request (area, city). */
+  homeArea: string;
+  /** The Duty switch: on = offered new pickups. Starts off. */
+  onDuty: boolean;
+  /** When the switch last changed (so "shift ended at ..." can be shown after going off duty). */
+  dutyChangedAt: string | null;
+  stats: {
+    totalAssigned: number;
+    completed: number;
+    openJobs: number;
+    todayJobs: number;
+    totalWeightKg: number;
+    totalPayoutRupees: number;
+  };
 }
 
 export interface CashFloatWallet {
@@ -131,6 +151,12 @@ interface EmployeeContextType {
   activeNavStop: RouteStop | null;
   setActiveNavStop: (stop: RouteStop | null) => void;
   startLiveNavigation: (stop: RouteStop) => void;
+  /** Turn duty on or off (saved on the server). Resolves false if it could not be saved. */
+  setOnDuty: (onDuty: boolean) => Promise<boolean>;
+  /** The pickup to show first on Home: the open one the picker most recently tapped Navigate on. */
+  nextPickup: RouteStop | null;
+  /** Has the picker already started the journey to this pickup (tapped Navigate, or it is on the way)? */
+  hasNavigated: (stop: RouteStop) => boolean;
   playAlertChime: () => void;
   triggerVibration: (pattern?: number[]) => void;
   hasUpdateAvailable: boolean;
@@ -185,6 +211,13 @@ const EMPTY_PROFILE: EmployeeProfile = {
   kycVerified: false,
   fixedDailyWageRupees: 0,
   incentivePerKgRupees: 0,
+  status: '',
+  memberSince: null,
+  approvedAt: null,
+  homeArea: '',
+  onDuty: false,
+  dutyChangedAt: null,
+  stats: { totalAssigned: 0, completed: 0, openJobs: 0, todayJobs: 0, totalWeightKg: 0, totalPayoutRupees: 0 },
 };
 
 const EMPTY_WALLET: CashFloatWallet = {
@@ -198,11 +231,33 @@ const EMPTY_WALLET: CashFloatWallet = {
 const EmployeeContext = createContext<EmployeeContextType | undefined>(undefined);
 
 const mapStatus = (status = ''): RouteStop['status'] => {
-  if (['COMPLETED', 'SETTLED', 'INVOICED'].includes(status)) return 'COMPLETED';
+  // SETTLED is still open: payment is recorded but the customer's completion code is yet to be entered.
+  if (['COMPLETED', 'INVOICED', 'OTP_VERIFIED'].includes(status)) return 'COMPLETED';
   if (
-    ['ON_THE_WAY', 'ARRIVED', 'QR_VERIFIED', 'VERIFIED', 'IN_PROGRESS', 'MEASURED', 'CUSTOMER_CONFIRMED', 'PAYMENT_PENDING', 'OTP_SENT'].includes(status)
+    ['ON_THE_WAY', 'ARRIVED', 'QR_VERIFIED', 'VERIFIED', 'IN_PROGRESS', 'MEASURED', 'SUMMARY_READY', 'CUSTOMER_CONFIRMED', 'PAYMENT_PENDING', 'SETTLED', 'OTP_SENT'].includes(status)
   ) return 'IN_PROGRESS';
   return 'SCHEDULED';
+};
+
+/** Which screen of the pickup flow a pickup in this server status belongs on (so Continue resumes, not restarts). */
+const stepForStatus = (status: string, hasItems: boolean): PickupStep => {
+  switch (status) {
+    case 'VERIFIED':
+      return 'STEP_2_VERIFIED';
+    case 'IN_PROGRESS':
+      return 'STEP_4_CATALOG';
+    case 'MEASURED':
+    case 'SUMMARY_READY':
+    case 'CUSTOMER_CONFIRMED':
+    case 'PAYMENT_PENDING':
+      return hasItems ? 'STEP_10_REVIEW' : 'STEP_4_CATALOG';
+    case 'SETTLED':
+    case 'OTP_VERIFIED':
+    case 'INVOICED':
+      return 'STEP_15_OTP';
+    default:
+      return 'STEP_1_SCAN_QR';
+  }
 };
 
 const mapPickup = (pickup: any, sequence: number): RouteStop => {
@@ -227,7 +282,7 @@ const mapPickup = (pickup: any, sequence: number): RouteStop => {
     phone: pickup?.customerPhone || address.phone || address.mobile || '—',
     timeSlot: pickup?.timeSlotSnapshot?.displayLabel || '—',
     scheduledTime: pickup?.timeSlotSnapshot?.startTime || '—',
-    address: [address.line1, address.line2].filter(Boolean).join(', ') || '—',
+    address: [address.houseNumber, address.line1, address.line2].filter(Boolean).join(', ') || '—',
     locality: [address.city, address.state, address.pincode].filter(Boolean).join(', ') || '—',
     landmark: address.landmark || '',
     estimatedWeightKg,
@@ -254,6 +309,8 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const notificationsPrimedRef = useRef(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [profile, setProfile] = useState<EmployeeProfile>(EMPTY_PROFILE);
+  const profileRef = useRef<EmployeeProfile>(EMPTY_PROFILE);
+  profileRef.current = profile;
   const [routeTitle, setRouteTitle] = useState('Today’s route');
   const [shiftStatus, setShiftStatus] = useState<ShiftStatus>('AVAILABLE');
   const [activeTab, setActiveTab] = useState<AppTab>('HOME');
@@ -268,7 +325,19 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [incomingOrder, setIncomingOrder] = useState<any>(null);
   const [isLiveNavOpen, setIsLiveNavOpen] = useState(false);
   const [activeNavStop, setActiveNavStop] = useState<RouteStop | null>(null);
+  // When the picker last tapped Navigate on each pickup (id -> time). Kept on the phone so it survives a reload.
+  const [navigatedAt, setNavigatedAt] = useState<Record<string, number>>({});
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(NAVIGATED_KEY);
+      if (raw) setNavigatedAt(JSON.parse(raw));
+    } catch {
+      /* start empty */
+    }
+  }, []);
   const [pickupStep, setPickupStep] = useState<PickupStep>('IDLE');
+  const pickupStepRef = useRef<PickupStep>('IDLE');
+  pickupStepRef.current = pickupStep;
   const [isFlashlightOn, setIsFlashlightOn] = useState(false);
   const [catalogItems, setCatalogItems] = useState<ScrapCatalogItem[]>([]);
   const [selectedCatalogIds, setSelectedCatalogIds] = useState<string[]>([]);
@@ -300,7 +369,10 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     // Keep an in-progress collection in sync with admin changes: drop items whose
     // product was disabled and refresh rates (margin-inclusive) of the rest.
-    if (flattened.length > 0) {
+    // Once the weights are recorded and locked (review / completion-code screens) the amounts must
+    // stay as recorded, so never re-price them from today's rates.
+    const pricesLocked = pickupStepRef.current === 'STEP_10_REVIEW' || pickupStepRef.current === 'STEP_15_OTP';
+    if (flattened.length > 0 && !pricesLocked) {
       const byId = new Map(flattened.map((item: ScrapCatalogItem) => [item.id, item]));
       setSelectedCatalogIds((previous) => previous.filter((id) => byId.has(id)));
       setCollectedItems((previous) =>
@@ -343,6 +415,20 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         kycVerified: serverProfile.status === 'APPROVED',
         fixedDailyWageRupees: Number(serverProfile.fixedDailyWageRupees || 0),
         incentivePerKgRupees: Number(serverProfile.incentivePerKgRupees || 0),
+        status: serverProfile.status || '',
+        memberSince: serverProfile.createdAt || null,
+        approvedAt: serverProfile.approvedAt || null,
+        homeArea: [serverProfile.address?.area, serverProfile.address?.city].filter(Boolean).join(', '),
+        onDuty: Boolean(serverProfile.onDuty),
+        dutyChangedAt: serverProfile.dutyChangedAt || null,
+        stats: {
+          totalAssigned: Number(serverProfile.stats?.totalAssigned || 0),
+          completed: Number(serverProfile.stats?.completed || 0),
+          openJobs: Number(serverProfile.stats?.openJobs || 0),
+          todayJobs: Number(serverProfile.stats?.todayJobs || 0),
+          totalWeightKg: Number(serverProfile.stats?.totalWeightKg || 0),
+          totalPayoutRupees: Number(serverProfile.stats?.totalPayoutRupees || 0),
+        },
       });
     }
 
@@ -394,6 +480,8 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const logout = () => {
     // Must run before the tokens are removed below: the request needs them.
     disablePush((token) => fieldOpsApi.unregisterDevice(token));
+    void fieldOpsApi.setDuty(false);
+    void fieldOpsApi.logout();
     if (typeof window !== 'undefined') {
       localStorage.removeItem('aslikaata_emp_token');
       localStorage.removeItem('aslikaata_emp_refresh_token');
@@ -406,6 +494,12 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setCollectedItems([]);
     setSelectedCatalogIds([]);
     setLastCompletion(null);
+    setNavigatedAt({});
+    try {
+      localStorage.removeItem(NAVIGATED_KEY);
+    } catch {
+      /* ignore */
+    }
     setNotifications([]);
     setToastNotification(null);
     seenNotificationIdsRef.current = new Set();
@@ -492,7 +586,69 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     triggerVibration();
   };
 
+  const setOnDuty = useCallback(async (onDuty: boolean) => {
+    // Show the change at once, then confirm with the server; put it back if the server says no.
+    const previous = { onDuty: profileRef.current.onDuty, dutyChangedAt: profileRef.current.dutyChangedAt };
+    setProfile((p) => ({ ...p, onDuty, dutyChangedAt: new Date().toISOString() }));
+    const result = await fieldOpsApi.setDuty(onDuty);
+    if (!result.success) {
+      setProfile((p) => ({ ...p, ...previous }));
+      return false;
+    }
+    setProfile((p) => ({ ...p, onDuty: result.data?.onDuty ?? onDuty, dutyChangedAt: result.data?.dutyChangedAt ?? p.dutyChangedAt }));
+    return true;
+  }, []);
+
+  const markNavigated = useCallback((id: string) => {
+    setNavigatedAt((previous) => {
+      // keep only the most recent few: this is a convenience, not a record
+      const newest = Object.entries({ ...previous, [id]: Date.now() })
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 50);
+      const next = Object.fromEntries(newest);
+      try {
+        localStorage.setItem(NAVIGATED_KEY, JSON.stringify(next));
+      } catch {
+        /* storage is optional */
+      }
+      return next;
+    });
+  }, []);
+
+  /** Starting the journey: an assigned pickup becomes "on the way" (the customer is told). */
+  const markOnTheWay = async (stop: RouteStop) => {
+    if (stop.rawStatus !== 'ASSIGNED') return;
+    const result = await fieldOpsApi.onTheWay(stop.id);
+    if (!result.success) return;
+    const onTheWay = (s: RouteStop): RouteStop =>
+      s.id === stop.id ? { ...s, rawStatus: 'ON_THE_WAY', status: 'IN_PROGRESS' } : s;
+    setRouteStops((previous) => previous.map(onTheWay));
+    setActivePickup((previous) => (previous && previous.id === stop.id ? onTheWay(previous) : previous));
+  };
+
+  const hasNavigated = useCallback(
+    (stop: RouteStop) => Boolean(navigatedAt[stop.id]) || ['ON_THE_WAY', 'ARRIVED'].includes(stop.rawStatus),
+    [navigatedAt],
+  );
+
+  // Next pickup = the open pickup the picker last tapped Navigate on. Finished and cancelled ones never
+  // qualify. Before any Navigate: the one already under way, else the earliest in the route.
+  const nextPickup = useMemo(() => {
+    const open = routeStops.filter(
+      (stop) => stop.status !== 'COMPLETED' && !['CANCELLED', 'FAILED'].includes(stop.rawStatus),
+    );
+    if (open.length === 0) return null;
+    const navigated = open.filter((stop) => navigatedAt[stop.id]).sort((a, b) => navigatedAt[b.id] - navigatedAt[a.id]);
+    if (navigated.length > 0) return navigated[0];
+    const rank = (stop: RouteStop) => (stop.status === 'IN_PROGRESS' ? 0 : 1);
+    return [...open].sort((a, b) => rank(a) - rank(b) || a.stopNumber - b.stopNumber)[0];
+  }, [routeStops, navigatedAt]);
+
   const startLiveNavigation = (stop: RouteStop) => {
+    // Tapping Navigate starts the journey: it becomes the next pickup, unlocks "Start Pickup" for when the
+    // picker comes back, and the customer is told the picker is on the way.
+    markNavigated(stop.id);
+    void markOnTheWay(stop);
     if (!SHOW_LIVE_NAV) {
       // In-app navigation is off for now: "Navigate" opens Google Maps directions to the customer.
       setActivePickup(stop);
@@ -519,24 +675,69 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         previous.map((stop) => (stop.id === updated.id ? updated : stop)),
       );
     }
-    // Fresh flow: clear any selection carried over from a previous pickup, then
-    // load the customer's booked categories so the catalog pre-selects them.
+    // Fresh flow: clear any selection carried over from a previous pickup.
     setSelectedCatalogIds([]);
     setCollectedItems([]);
     setPickupCategoryIds([]);
     catalogAutoAppliedRef.current = false;
-    void (async () => {
-      const detail = await fieldOpsApi.getPickup(updated.id);
-      if (detail.success && detail.data) {
-        const categories = Array.isArray(detail.data.categories) ? detail.data.categories : [];
-        setPickupCategoryIds(
-          categories.map((category: any) => String(category?._id || category)).filter(Boolean),
-        );
-      }
-    })();
+
+    // Ask the server where this pickup really is (the list may be stale, and the app may have been
+    // reopened mid-pickup) and continue from that screen instead of always starting at the QR scan.
+    const detail = await fieldOpsApi.getPickup(updated.id);
+    const data = detail.success ? detail.data : null;
+    let status = String(data?.status || updated.rawStatus || '');
+    if (status === 'COMPLETED' || status === 'CANCELLED' || status === 'FAILED') {
+      void refreshDashboardData();
+      return false;
+    }
+    if (data) {
+      const categories = Array.isArray(data.categories) ? data.categories : [];
+      setPickupCategoryIds(
+        categories.map((category: any) => String(category?._id || category)).filter(Boolean),
+      );
+    }
+
+    // Weights already recorded (locked on the server): bring them back for the review / code screens.
+    const recorded: CollectedScrapItem[] = (Array.isArray(data?.items) ? data.items : []).map((item: any) => {
+      const id = String(item.productId);
+      const product = catalogItems.find((entry) => entry.id === id);
+      const weightKg = Number(item.grossWeightGrams || 0) / 1000;
+      return {
+        id,
+        name: item.productName || product?.name || '—',
+        category: product?.category || '',
+        emoji: product?.emoji,
+        ratePerKg: Number(item.ratePerKgSnapshot || 0) / 100,
+        weightKg,
+        lineTotalRupees: Number(item.amount || 0) / 100,
+      };
+    });
+    const lockedStatuses = ['MEASURED', 'SUMMARY_READY', 'CUSTOMER_CONFIRMED', 'PAYMENT_PENDING', 'SETTLED', 'OTP_VERIFIED', 'INVOICED'];
+    const hasItems = recorded.length > 0 && lockedStatuses.includes(status);
+    if (hasItems) {
+      setCollectedItems(recorded);
+      setSelectedCatalogIds(recorded.map((item) => item.id));
+      catalogAutoAppliedRef.current = true;
+    }
+
+    // The QR was scanned but the job was never started (app closed in between): finish that step.
+    if (status === 'VERIFIED') {
+      const started = await fieldOpsApi.startPickup(updated.id);
+      if (started.success) status = 'IN_PROGRESS';
+    }
+
+    // Start Pickup means the picker is at the door: mark the arrival. The customer is then told their
+    // executive is nearby and to open the app and show their pickup QR; the picker scans it next.
+    if (status === 'ON_THE_WAY') {
+      const arrived = await fieldOpsApi.arrived(updated.id);
+      if (arrived.success) status = 'ARRIVED';
+    }
+
+    updated = { ...updated, rawStatus: status };
+    setRouteStops((previous) => previous.map((stop) => (stop.id === updated.id ? updated : stop)));
     setActivePickup(updated);
     setShiftStatus('ON_PICKUP');
-    setPickupStep('STEP_1_SCAN_QR');
+    setPickupStep(stepForStatus(status, hasItems));
     return true;
   };
 
@@ -623,7 +824,7 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       profile, routeTitle, shiftStatus, setShiftStatus, activeTab, setActiveTab, routeStops,
       activePickup, setActivePickup, cashFloat, isIncomingAlertOpen, setIsIncomingAlertOpen,
       incomingOrder, triggerIncomingOrderAlert, isLiveNavOpen, setIsLiveNavOpen, activeNavStop,
-      setActiveNavStop, startLiveNavigation, playAlertChime, triggerVibration,
+      setActiveNavStop, startLiveNavigation, nextPickup, hasNavigated, setOnDuty, playAlertChime, triggerVibration,
       hasUpdateAvailable, setHasUpdateAvailable, isReleaseNotesOpen, setIsReleaseNotesOpen,
       pickupStep, setPickupStep, isFlashlightOn, setIsFlashlightOn, catalogItems, refreshCatalog,
       selectedCatalogIds, toggleCatalogItemSelection, collectedItems, updateCollectedItemWeight,

@@ -123,7 +123,8 @@ function EmployeeAppContent() {
         /* 3. Step 2: Pickup Verified Confirmation */
         <PickupVerifiedScreen
           onContinueToCatalog={() => setPickupStep('STEP_4_CATALOG')}
-          onBack={() => setPickupStep('STEP_1_SCAN_QR')}
+          // The QR is already verified: going "back" to the scanner would only fail, so leave the flow.
+          onBack={() => setPickupStep('IDLE')}
         />
       ) : pickupStep === 'STEP_4_CATALOG' ? (
         /* 4. Step 4: Add Scrap Catalog Screen */

@@ -1,19 +1,47 @@
 "use client";
 
-import React from 'react';
-import { Banknote, LogOut, ShieldCheck, Truck, User } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { CheckCircle2, ClipboardList, IndianRupee, LogOut, MapPin, ShieldCheck, Truck, User, Weight } from 'lucide-react';
 import { useEmployee } from '../../context/EmployeeContext';
 
-const UnavailableCard = ({ title }: { title: string }) => (
-  <div className="p-4 rounded-3xl bg-white border border-slate-200 shadow-sm">
-    <h3 className="font-black text-xs text-slate-900 uppercase tracking-wide">{title}</h3>
-    <div className="font-mono font-black text-xl text-slate-900 mt-3">₹0</div>
-    <p className="text-[11px] text-slate-500 mt-1">Not available from server yet</p>
+const formatDate = (iso: string | null) => {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? '—'
+    : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+const titleCase = (value: string) =>
+  value ? value.charAt(0) + value.slice(1).toLowerCase().replace(/_/g, ' ') : '—';
+
+const Row = ({ label, value }: { label: string; value: React.ReactNode }) => (
+  <div className="flex justify-between gap-4">
+    <span className="text-slate-500 shrink-0">{label}</span>
+    <strong className="text-right text-slate-900">{value}</strong>
+  </div>
+);
+
+const Stat = ({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) => (
+  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
+    <div className="flex items-center gap-1.5 text-slate-500 text-[10px] font-bold uppercase tracking-wide">
+      {icon}
+      {label}
+    </div>
+    <div className="font-mono font-black text-lg text-slate-900 mt-1.5">{value}</div>
   </div>
 );
 
 export const ProfileScreen: React.FC = () => {
-  const { profile, logout } = useEmployee();
+  const { profile, logout, refreshDashboardData } = useEmployee();
+
+  // Stats change as pickups finish, so reload them whenever this screen opens.
+  useEffect(() => {
+    void refreshDashboardData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const loaded = Boolean(profile.id);
   const initials =
     profile.name === '—'
       ? '—'
@@ -23,6 +51,8 @@ export const ProfileScreen: React.FC = () => {
           .join('')
           .slice(0, 2)
           .toUpperCase();
+  const hasVehicle = profile.vehicleReg !== '—' || profile.vehicleName !== '—';
+  const { stats } = profile;
 
   return (
     <div className="p-4 space-y-4 select-none pb-24">
@@ -32,7 +62,7 @@ export const ProfileScreen: React.FC = () => {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h2 className="font-black text-slate-900 text-base truncate">{profile.name}</h2>
+            <h2 className="font-black text-slate-900 text-base truncate">{loaded ? profile.name : 'Loading…'}</h2>
             {profile.kycVerified && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-black uppercase">
                 <ShieldCheck className="w-3 h-3" /> Verified
@@ -40,37 +70,56 @@ export const ProfileScreen: React.FC = () => {
             )}
           </div>
           <div className="font-mono text-xs text-slate-500 mt-0.5">{profile.employeeCode}</div>
-          <div className="text-[11px] text-emerald-800 font-bold mt-0.5">{profile.assignedDivision}</div>
+          {profile.homeArea && (
+            <div className="text-[11px] text-emerald-800 font-bold mt-0.5 flex items-center gap-1">
+              <MapPin className="w-3 h-3" /> {profile.homeArea}
+            </div>
+          )}
         </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        <Stat icon={<ClipboardList className="w-3 h-3" />} label="Today" value={stats.todayJobs} />
+        <Stat icon={<Truck className="w-3 h-3" />} label="Open" value={stats.openJobs} />
+        <Stat icon={<CheckCircle2 className="w-3 h-3" />} label="Done" value={stats.completed} />
       </div>
 
       <div className="p-4 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-3 text-xs">
         <h3 className="font-black text-slate-900 uppercase tracking-wide flex items-center gap-2">
           <User className="w-4 h-4 text-emerald-700" /> Employee details
         </h3>
-        <div className="flex justify-between"><span className="text-slate-500">Phone</span><strong>{profile.phone}</strong></div>
-        <div className="flex justify-between"><span className="text-slate-500">Role</span><strong>{profile.role}</strong></div>
-        <div className="flex justify-between"><span className="text-slate-500">KYC status</span><strong>{profile.kycVerified ? 'Approved' : 'Not approved'}</strong></div>
+        <Row label="Phone" value={profile.phone} />
+        <Row label="Account status" value={titleCase(profile.status)} />
+        <Row label="Member since" value={formatDate(profile.memberSince)} />
+        <Row label="Approved on" value={formatDate(profile.approvedAt)} />
       </div>
 
       <div className="p-4 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-3 text-xs">
         <h3 className="font-black text-slate-900 uppercase tracking-wide flex items-center gap-2">
-          <Truck className="w-4 h-4 text-emerald-700" /> Assigned vehicle
+          <Truck className="w-4 h-4 text-emerald-700" /> Vehicle
         </h3>
-        <div className="flex justify-between"><span className="text-slate-500">Registration</span><strong>{profile.vehicleReg}</strong></div>
-        <div className="flex justify-between"><span className="text-slate-500">Vehicle</span><strong>{profile.vehicleName}</strong></div>
+        {hasVehicle ? (
+          <>
+            <Row label="Registration" value={profile.vehicleReg} />
+            <Row label="Vehicle" value={profile.vehicleName} />
+          </>
+        ) : (
+          <p className="text-slate-500">No vehicle on record.</p>
+        )}
       </div>
 
-      <UnavailableCard title="Wallet & Cash Float" />
-      <UnavailableCard title="Earnings & Incentives" />
-      <UnavailableCard title="Route Expenses" />
-
-      <div className="p-4 rounded-3xl bg-slate-50 border border-slate-200">
-        <div className="flex items-center gap-2 text-slate-700">
-          <Banknote className="w-4 h-4" />
-          <h3 className="font-black text-xs uppercase tracking-wide">Shift handover</h3>
+      <div className="p-4 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-3">
+        <h3 className="font-black text-xs text-slate-900 uppercase tracking-wide">Work summary</h3>
+        <div className="grid grid-cols-2 gap-2">
+          <Stat icon={<ClipboardList className="w-3 h-3" />} label="Pickups assigned" value={stats.totalAssigned} />
+          <Stat icon={<CheckCircle2 className="w-3 h-3" />} label="Completed" value={stats.completed} />
+          <Stat icon={<Weight className="w-3 h-3" />} label="Scrap collected" value={`${stats.totalWeightKg} kg`} />
+          <Stat
+            icon={<IndianRupee className="w-3 h-3" />}
+            label="Paid to customers"
+            value={`₹${stats.totalPayoutRupees.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`}
+          />
         </div>
-        <p className="text-[11px] text-slate-500 mt-2">Not available from server yet</p>
       </div>
 
       <button

@@ -19,9 +19,8 @@ import {
   IndianRupee,
   Weight,
 } from 'lucide-react';
-import { SHOW_LIVE_NAV } from '../../lib/features';
-import { openDirections } from '../../lib/maps';
 import { useEmployee, RouteStop } from '../../context/EmployeeContext';
+import { PickupActions } from './PickupActions';
 
 interface MyPickupsScreenProps {
   onSelectStop?: (stop: RouteStop) => void;
@@ -46,7 +45,10 @@ export const MyPickupsScreen: React.FC<MyPickupsScreenProps> = ({
   const [search, setSearch] = useState('');
 
   // Each modal type is independent
-  const [scheduledStop, setScheduledStop] = useState<RouteStop | null>(null);
+  const [scheduledStopId, setScheduledStopId] = useState<string | null>(null);
+  // The live copy of the opened pickup, so its buttons change as soon as its status does.
+  const scheduledStop = routeStops.find((s) => s.id === scheduledStopId) || null;
+  const setScheduledStop = (stop: RouteStop | null) => setScheduledStopId(stop?.id ?? null);
   const [completedStop, setCompletedStop] = useState<RouteStop | null>(null);
 
   const filteredStops = routeStops.filter((s) => {
@@ -63,6 +65,11 @@ export const MyPickupsScreen: React.FC<MyPickupsScreenProps> = ({
     return true;
   });
 
+  // Already at the door and collecting: tapping resumes the flow. A pickup that is only on the way still
+  // gets the Call / Navigate / Start buttons first.
+  const isCollecting = (stop: RouteStop) =>
+    stop.status === 'IN_PROGRESS' && !['ON_THE_WAY', 'ARRIVED'].includes(stop.rawStatus);
+
   // ─── Card click: branch by status ───────────────────────────────────────────
   const handleCardClick = async (stop: RouteStop) => {
     if (stop.status === 'COMPLETED') {
@@ -70,16 +77,14 @@ export const MyPickupsScreen: React.FC<MyPickupsScreenProps> = ({
       return;
     }
 
-    if (stop.status === 'IN_PROGRESS') {
-      // Resume the active pickup flow directly
+    if (isCollecting(stop)) {
+      // Resume the pickup flow where it stopped, and show the step screens (Home tab)
       await startActivePickupFlow(stop.id);
-      // startActivePickupFlow sets activePickup + pickupStep to STEP_1_SCAN_QR
-      // Switch tab to HOME so the step screens are visible
       setActiveTab('HOME');
       return;
     }
 
-    // SCHEDULED → show inspector modal
+    // Scheduled or on the way → show the actions drawer
     setScheduledStop(stop);
   };
 
@@ -90,11 +95,6 @@ export const MyPickupsScreen: React.FC<MyPickupsScreenProps> = ({
     } else {
       startLiveNavigation(stop);
     }
-  };
-
-  const handleOpenGoogleMaps = (e: React.MouseEvent, stop: RouteStop) => {
-    e.stopPropagation();
-    openDirections(stop);
   };
 
   const handleStartCollectionFromModal = async (stop: RouteStop) => {
@@ -220,8 +220,8 @@ export const MyPickupsScreen: React.FC<MyPickupsScreenProps> = ({
                     ? `₹ ${stop.finalScrapValueRupees.toFixed(0)}`
                     : 'Done'}
                 </span>
-              ) : stop.status === 'IN_PROGRESS' ? (
-                /* In Progress: resume CTA */
+              ) : isCollecting(stop) ? (
+                /* Collecting: resume CTA */
                 <span className="flex items-center gap-1 text-[11px] text-amber-700 font-black animate-pulse">
                   <ArrowRight className="w-3.5 h-3.5" />
                   Tap to Resume
@@ -300,44 +300,10 @@ export const MyPickupsScreen: React.FC<MyPickupsScreenProps> = ({
               </div>
             </div>
 
-            {/* Map actions */}
-            <div className={`grid ${SHOW_LIVE_NAV ? 'grid-cols-2' : 'grid-cols-1'} gap-2 pt-2 border-t border-slate-100`}>
-              <button
-                type="button"
-                onClick={(e) => {
-                  handleOpenGoogleMaps(e, scheduledStop);
-                }}
-                className="py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-slate-50 cursor-pointer"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                <span>Google Maps</span>
-              </button>
-
-              {SHOW_LIVE_NAV && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const s = scheduledStop;
-                    setScheduledStop(null);
-                    startLiveNavigation(s);
-                  }}
-                  className="py-2.5 rounded-xl bg-[#0A3D2B] text-white font-bold text-xs hover:bg-[#0E4D36] flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
-                >
-                  <Compass className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Live Nav</span>
-                </button>
-              )}
+            {/* Navigate first; after the picker has navigated and come back: Call, Navigate, Start Pickup */}
+            <div className="pt-2 border-t border-slate-100">
+              <PickupActions stop={scheduledStop} onStart={handleStartCollectionFromModal} />
             </div>
-
-            {/* Start collection CTA */}
-            <button
-              type="button"
-              onClick={() => handleStartCollectionFromModal(scheduledStop)}
-              className="w-full py-3 rounded-2xl bg-[#F59E0B] text-slate-950 font-black text-xs hover:bg-amber-400 flex items-center justify-center gap-2 shadow-md cursor-pointer transition active:scale-[0.99]"
-            >
-              <Play className="w-4 h-4 fill-slate-950" />
-              <span>Start Doorstep Collection Now</span>
-            </button>
           </div>
         </div>
       )}

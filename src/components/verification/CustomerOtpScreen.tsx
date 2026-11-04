@@ -29,6 +29,7 @@ export const CustomerOtpScreen: React.FC<CustomerOtpScreenProps> = ({
     setPickupStep,
     triggerVibration,
     setLastCompletion,
+    paymentMethod,
   } = useEmployee();
 
   const stop = activePickup;
@@ -64,7 +65,7 @@ export const CustomerOtpScreen: React.FC<CustomerOtpScreenProps> = ({
     triggerVibration([150, 80, 150]);
     setIsVerifying(true);
     setVerifyError('');
-    const result = await fieldOpsApi.verifyClosingOtp(stop.id, otpDigits.join(''));
+    const result = await fieldOpsApi.verifyClosingOtp(stop.id, otpDigits.join(''), paymentMethod);
     setIsVerifying(false);
     if (!result.success || !result.data) {
       setVerifyError(result.message || 'OTP verification failed.');
@@ -129,7 +130,7 @@ export const CustomerOtpScreen: React.FC<CustomerOtpScreenProps> = ({
           <div>
             <span className="font-bold text-[#0A3D2B] block text-xs">Enter Customer OTP</span>
             <span className="text-[11px] text-emerald-900 mt-0.5 block leading-snug">
-              Ask the customer for the OTP sent to their registered mobile number.
+              Ask the customer to open their pickup in the ASLI KAATA app and read out the 6-digit completion code shown there. No SMS is sent.
             </span>
           </div>
         </div>

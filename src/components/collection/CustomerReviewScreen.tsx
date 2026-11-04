@@ -42,35 +42,12 @@ export const CustomerReviewScreen: React.FC<CustomerReviewScreenProps> = ({
   } = useEmployee();
   const stop = activePickup;
   const [confirmError, setConfirmError] = useState('');
-  const [isConfirming, setIsConfirming] = useState(false);
 
-  const handleConfirm = async () => {
+  // The customer has no separate "approve" step any more: they look at this summary on their own phone and,
+  // if they agree, read out the code shown under it. So there is nothing to wait for here: go and enter it.
+  const handleConfirm = () => {
     if (!stop) return;
-    setIsConfirming(true);
     setConfirmError('');
-    let currentPickup: any = null;
-    for (let attempt = 0; attempt < 4; attempt += 1) {
-      const result = await fieldOpsApi.getPickup(stop.id);
-      if (!result.success) {
-        setConfirmError(result.message || 'Could not check customer confirmation.');
-        setIsConfirming(false);
-        return;
-      }
-      currentPickup = result.data;
-      if (['CUSTOMER_CONFIRMED', 'PAYMENT_PENDING'].includes(currentPickup?.status)) break;
-      if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, 1500));
-    }
-    if (!['CUSTOMER_CONFIRMED', 'PAYMENT_PENDING'].includes(currentPickup?.status)) {
-      setConfirmError('Waiting for the customer to confirm the pickup summary in their app.');
-      setIsConfirming(false);
-      return;
-    }
-    const settled = await fieldOpsApi.settlePickup(stop.id, paymentMethod);
-    setIsConfirming(false);
-    if (!settled.success) {
-      setConfirmError(settled.message || 'Failed to start settlement.');
-      return;
-    }
     if (onCustomerConfirmed) {
       onCustomerConfirmed();
     } else {
@@ -281,9 +258,10 @@ export const CustomerReviewScreen: React.FC<CustomerReviewScreenProps> = ({
             <Handshake className="w-4 h-4" />
           </div>
           <div>
-            <span className="font-bold text-[#0A3D2B] block">Confirm with Customer</span>
+            <span className="font-bold text-[#0A3D2B] block">Customer confirms with a code</span>
             <span className="text-[10px] text-emerald-800">
-              Once the customer has verified all the details, ask them to confirm.
+              The customer sees this same summary on their phone, with a 6-digit code under it. If they agree and
+              have been paid, they read the code out to you. You enter it on the next screen.
             </span>
           </div>
         </div>
@@ -295,10 +273,9 @@ export const CustomerReviewScreen: React.FC<CustomerReviewScreenProps> = ({
         <button
           type="button"
           onClick={handleConfirm}
-          disabled={isConfirming}
           className="w-full py-3.5 px-6 rounded-2xl bg-[#F59E0B] hover:bg-amber-400 text-slate-950 font-black text-xs tracking-wide shadow-lg shadow-amber-950/20 flex items-center justify-center gap-2 cursor-pointer transition active:scale-[0.99]"
         >
-          <span>{isConfirming ? 'Checking Confirmation…' : 'Customer Confirmed'}</span>
+          <span>Enter customer's code</span>
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>

@@ -210,6 +210,19 @@ class FieldOpsApiService {
     );
   }
 
+  /** The Duty ON / OFF switch: only employees on duty are offered new pickups by the admin. */
+  setDuty(onDuty: boolean) {
+    return this.request<{ onDuty: boolean; dutyChangedAt: string }>('/employee/duty', {
+      method: 'PUT',
+      body: JSON.stringify({ onDuty }),
+    });
+  }
+
+  /** Ends this login on the server (revokes the session) so admin no longer sees the picker as logged in. */
+  logout() {
+    return this.request<{ loggedOut: boolean }>('/auth/logout', { method: 'POST' }, false);
+  }
+
   // --- Push notification device registration ---
 
   registerDevice(token: string, platform: 'ANDROID' | 'IOS') {
@@ -334,10 +347,14 @@ class FieldOpsApiService {
     });
   }
 
-  verifyClosingOtp(pickupId: string, code: string) {
+  /**
+   * Completes the pickup with the code the customer reads out. The code is also the customer's confirmation
+   * of the weighing summary, so the payment (cash or UPI) is recorded with it.
+   */
+  verifyClosingOtp(pickupId: string, code: string, paymentType: 'CASH' | 'UPI' = 'CASH') {
     return this.request<{ pickup: any; invoice: any }>(
       `/employee/pickups/${pickupId}/verify-closing-otp`,
-      { method: 'POST', body: JSON.stringify({ code }) },
+      { method: 'POST', body: JSON.stringify({ code, paymentType }) },
     );
   }
 

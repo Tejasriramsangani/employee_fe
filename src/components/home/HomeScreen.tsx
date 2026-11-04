@@ -18,11 +18,10 @@ import {
   Sparkles,
   Compass,
   X,
-  Play,
-  RotateCcw,
+  Power,
 } from 'lucide-react';
-import { SHOW_LIVE_NAV } from '../../lib/features';
 import { useEmployee, RouteStop } from '../../context/EmployeeContext';
+import { PickupActions } from '../pickups/PickupActions';
 
 interface HomeScreenProps {
   onStartPickupFlow?: (pickupId: string) => void;
@@ -33,44 +32,54 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onStartPickupFlow,
   onNavigateToPickup,
 }) => {
-  const {
-    profile,
-    shiftStatus,
-    setShiftStatus,
-    routeStops,
-    activePickup,
-    setActivePickup,
-    setActiveTab,
-    startLiveNavigation,
-  } = useEmployee();
+  const { profile, shiftStatus, setShiftStatus, routeStops, nextPickup, setActiveTab, setOnDuty } = useEmployee();
 
-  const [selectedStopForDrawer, setSelectedStopForDrawer] = useState<RouteStop | null>(null);
+  // Duty switch (like a ride-hailing captain going online / offline).
+  const [dutyBusy, setDutyBusy] = useState(false);
+  const [dutyError, setDutyError] = useState('');
+  const toggleDuty = async () => {
+    if (dutyBusy) return;
+    setDutyBusy(true);
+    setDutyError('');
+    const saved = await setOnDuty(!profile.onDuty);
+    if (!saved) setDutyError('Could not change your duty. Check your connection and try again.');
+    setDutyBusy(false);
+  };
+
+  const [selectedStopId, setSelectedStopId] = useState<string | null>(null);
+  // Always the live copy, so the buttons change as soon as the pickup's status does.
+  const selectedStopForDrawer = routeStops.find((s) => s.id === selectedStopId) || null;
+  const setSelectedStopForDrawer = (stop: RouteStop | null) => setSelectedStopId(stop?.id ?? null);
 
   // Compute overview counts
   const totalScheduled = routeStops.length;
   const inProgressCount = routeStops.filter((s) => s.status === 'IN_PROGRESS').length;
   const completedCount = routeStops.filter((s) => s.status === 'COMPLETED').length;
 
-  // Next scheduled pickup (for State 2)
-  const nextScheduledPickup = routeStops.find((s) => s.status === 'SCHEDULED') || routeStops[0] || null;
+  // The pickup shown first: the open one the picker last tapped Navigate on (finished ones never show here).
+  const nextScheduledPickup = nextPickup && nextPickup.status !== 'IN_PROGRESS' ? nextPickup : null;
+  const currentPickup = nextPickup && nextPickup.status === 'IN_PROGRESS' ? nextPickup : null;
 
-  const handleContinuePickup = () => {
-    if (activePickup && onStartPickupFlow) {
-      onStartPickupFlow(activePickup.pickupCode);
-    } else if (routeStops.length > 0 && onStartPickupFlow) {
-      onStartPickupFlow(routeStops[0].pickupCode);
-    }
-  };
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
-  const handleStartNextPickup = (stop: RouteStop) => {
-    if (!SHOW_LIVE_NAV) {
-      // No in-app navigation: go straight into the pickup flow (marks the picker on the way, then QR scan).
-      onStartPickupFlow?.(stop.pickupCode);
-      return;
-    }
-    setActivePickup(stop);
+  // "Shift ended" only appears after the employee has actually been on duty and switched off today.
+  const endedToday =
+    !profile.onDuty &&
+    profile.dutyChangedAt &&
+    new Date(profile.dutyChangedAt).toDateString() === new Date().toDateString();
+  const dutySubtitle = profile.onDuty
+    ? "You're online. Ready for today's pickups."
+    : endedToday
+    ? `Shift ended at ${new Date(profile.dutyChangedAt as string).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}${
+        completedCount > 0 ? ` · ${completedCount} pickup${completedCount > 1 ? 's' : ''} done today` : ''
+      }`
+    : 'Go on duty to start receiving pickups.';
+
+  const handleStart = (stop: RouteStop) => {
+    setSelectedStopForDrawer(null);
     setShiftStatus('ON_PICKUP');
-    startLiveNavigation(stop);
+    onStartPickupFlow?.(stop.pickupCode);
   };
 
   return (
@@ -80,47 +89,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-lg font-black text-slate-900 tracking-tight">
-              {shiftStatus === 'COMPLETED' ? `Good evening, ${profile.name.split(' ')[0]}` : `Good morning, ${profile.name.split(' ')[0]}`}
+              {greeting}, {profile.name.split(' ')[0]}
             </h1>
           </div>
           <p className="text-xs text-slate-500 font-medium">
-            {shiftStatus === 'COMPLETED' ? 'Great work today!' : "Ready for today's pickups?"}
+            {dutySubtitle}
           </p>
-
-          {/* Shift Status Pill Switcher */}
-          <div className="mt-1.5 flex items-center">
-            <button
-              type="button"
-              onClick={() => {
-                const nextStatus = shiftStatus === 'ON_PICKUP' ? 'AVAILABLE' : 'ON_PICKUP';
-                setShiftStatus(nextStatus);
-              }}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
-                shiftStatus === 'ON_PICKUP'
-                  ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                  : shiftStatus === 'COMPLETED'
-                  ? 'bg-slate-100 text-slate-700 border border-slate-300'
-                  : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-              }`}
-            >
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  shiftStatus === 'ON_PICKUP'
-                    ? 'bg-amber-500 animate-pulse'
-                    : shiftStatus === 'COMPLETED'
-                    ? 'bg-slate-400'
-                    : 'bg-emerald-500'
-                }`}
-              ></span>
-              <span>
-                {shiftStatus === 'ON_PICKUP'
-                  ? "You're On Pickup"
-                  : shiftStatus === 'COMPLETED'
-                  ? 'Shift Finished'
-                  : "You're Available"}
-              </span>
-            </button>
-          </div>
         </div>
 
         {/* Right Header: Test Alert Trigger, Notification Bell & Profile Avatar */}
@@ -142,6 +116,49 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Duty switch */}
+      <div
+        className={`rounded-2xl px-4 py-3 flex items-center justify-between gap-3 border transition-colors ${
+          profile.onDuty
+            ? 'bg-gradient-to-r from-[#0A3D2B] to-[#0E4D36] border-emerald-700 text-white shadow-md'
+            : 'bg-white border-slate-200 text-slate-800'
+        }`}
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <span
+            className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+              profile.onDuty ? 'bg-emerald-400/20 text-emerald-300' : 'bg-slate-100 text-slate-500'
+            }`}
+          >
+            <Power className="w-4.5 h-4.5" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-black leading-tight">{profile.onDuty ? 'You are ON DUTY' : 'You are OFF DUTY'}</p>
+            <p className={`text-[11px] leading-snug ${profile.onDuty ? 'text-emerald-200' : 'text-slate-500'}`}>
+              {profile.onDuty ? 'New pickups can be assigned to you' : 'Switch on to get new pickups'}
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={profile.onDuty}
+          aria-label="Duty on or off"
+          onClick={toggleDuty}
+          disabled={dutyBusy}
+          className={`relative w-14 h-8 rounded-full shrink-0 transition-colors cursor-pointer disabled:opacity-60 ${
+            profile.onDuty ? 'bg-emerald-400' : 'bg-slate-300'
+          }`}
+        >
+          <span
+            className={`absolute top-1 left-1 w-6 h-6 rounded-full bg-white shadow-md transition-transform ${
+              profile.onDuty ? 'translate-x-6' : 'translate-x-0'
+            }`}
+          />
+        </button>
+      </div>
+      {dutyError && <p className="text-[11px] font-semibold text-rose-600 -mt-2 px-1">{dutyError}</p>}
 
       {/* 2. Today's Overview Counters Card */}
       <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-sm space-y-2.5">
@@ -222,7 +239,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       ) : (
         <>
           {/* --- STATE 1: CURRENT PICKUP (IN PROGRESS) --- */}
-          {shiftStatus === 'ON_PICKUP' && activePickup && (
+          {currentPickup && (
             <div className="p-4 rounded-3xl bg-gradient-to-br from-[#0A3D2B] via-[#0E4D36] to-[#062418] text-white shadow-xl space-y-3 relative overflow-hidden">
               {/* Subtle background circuit/grid decorative */}
               <div className="absolute -right-8 -top-8 w-36 h-36 bg-emerald-400/10 rounded-full blur-xl pointer-events-none"></div>
@@ -235,7 +252,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   </span>
                 </div>
                 <span className="font-mono font-extrabold text-xs text-emerald-300">
-                  {activePickup.pickupCode}
+                  {currentPickup.pickupCode}
                 </span>
               </div>
 
@@ -243,18 +260,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <div className="flex items-center justify-between gap-3">
                 <div className="space-y-1.5 flex-1 min-w-0">
                   <div className="font-black text-sm text-white truncate">
-                    {activePickup.customerName}
+                    {currentPickup.customerName}
                   </div>
 
                   <div className="flex items-center gap-1.5 text-xs text-slate-200">
                     <Clock className="w-3.5 h-3.5 text-amber-300 shrink-0" />
-                    <span className="text-[11px] font-medium">{activePickup.timeSlot}</span>
+                    <span className="text-[11px] font-medium">{currentPickup.timeSlot}</span>
                   </div>
 
                   <div className="flex items-center gap-1.5 text-xs text-slate-200">
                     <MapPin className="w-3.5 h-3.5 text-emerald-300 shrink-0" />
                     <span className="text-[11px] font-medium truncate">
-                      {activePickup.locality}
+                      {currentPickup.locality}
                     </span>
                   </div>
                 </div>
@@ -278,37 +295,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </div>
               </div>
 
-              {/* Action Buttons: Navigate Route & Continue Pickup */}
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const targetStop = activePickup || routeStops[0];
-                    if (onNavigateToPickup) {
-                      onNavigateToPickup(targetStop);
-                    } else {
-                      startLiveNavigation(targetStop);
-                    }
-                  }}
-                  className="py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-emerald-400/40 text-emerald-200 font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer active:scale-[0.98]"
-                >
-                  <Compass className="w-4 h-4 text-emerald-400" />
-                  <span>Navigate</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleContinuePickup}
-                  className="py-2.5 rounded-xl bg-[#F59E0B] text-slate-950 font-black text-xs hover:bg-amber-400 transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-amber-950/30 cursor-pointer active:scale-[0.98]"
-                >
-                  <span>Continue</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
+              {/* Navigate first; Call / Navigate / Start once the journey has begun; Continue while collecting */}
+              <div className="pt-1">
+                <PickupActions stop={currentPickup} onStart={handleStart} variant="dark" />
               </div>
             </div>
           )}
 
           {/* --- STATE 2: NEXT PICKUP (BETWEEN STOPS / AVAILABLE) --- */}
-          {shiftStatus === 'AVAILABLE' && nextScheduledPickup && (
+          {nextScheduledPickup && (
             <div className="space-y-3">
               <div className="p-4 rounded-3xl bg-white border border-amber-200/80 shadow-md space-y-3">
                 <div className="flex items-center justify-between">
@@ -338,27 +333,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   <ChevronRight className="w-4 h-4 text-slate-300" />
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <PickupActions stop={nextScheduledPickup} onStart={handleStart} />
                   <button
                     type="button"
                     onClick={() => setSelectedStopForDrawer(nextScheduledPickup)}
-                    className="py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50 transition-all text-center cursor-pointer"
+                    className="w-full text-center text-[11px] font-bold text-slate-500 hover:text-slate-700 cursor-pointer"
                   >
-                    View Details
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (onNavigateToPickup) {
-                        onNavigateToPickup(nextScheduledPickup);
-                      } else {
-                        handleStartNextPickup(nextScheduledPickup);
-                      }
-                    }}
-                    className="py-2.5 rounded-xl bg-[#0A3D2B] text-white font-bold text-xs hover:bg-[#0E4D36] transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
-                  >
-                    <Compass className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Navigate</span>
+                    View details
                   </button>
                 </div>
               </div>
@@ -500,28 +482,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               </div>
             </div>
 
-            <div className="flex gap-2 pt-2 border-t border-slate-100">
-              <a
-                href={`tel:${selectedStopForDrawer.phone}`}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-800 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-slate-50 cursor-pointer"
-              >
-                <Phone className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Call Customer</span>
-              </a>
-
-              <button
-                type="button"
-                onClick={() => {
-                  const stop = selectedStopForDrawer;
-                  setSelectedStopForDrawer(null);
-                  handleStartNextPickup(stop);
-                }}
-                className="flex-1 py-2.5 rounded-xl bg-[#0A3D2B] text-white font-bold text-xs hover:bg-[#0E4D36] flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
-              >
-                <Play className="w-3.5 h-3.5 text-amber-400" />
-                <span>Start Pickup</span>
-              </button>
-            </div>
+            {/* Completed pickups have nothing left to do; open ones get the Navigate-first buttons */}
+            {selectedStopForDrawer.status !== 'COMPLETED' && (
+              <div className="pt-2 border-t border-slate-100">
+                <PickupActions stop={selectedStopForDrawer} onStart={handleStart} />
+              </div>
+            )}
           </div>
         </div>
       )}
