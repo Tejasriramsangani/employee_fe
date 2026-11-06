@@ -87,7 +87,7 @@ export const AddedItemsWeightScreen: React.FC<AddedItemsWeightScreenProps> = ({
   };
 
   return (
-    <div className="relative min-h-[720px] flex flex-col justify-between bg-[#F8FAFC] text-slate-900 select-none pb-32">
+    <div className="relative min-h-screen flex flex-col justify-between bg-[#F8FAFC] text-slate-900 select-none pb-44">
       <div className="p-4 space-y-4">
         {/* 1. Header with back button & title */}
         <div className="flex items-center justify-between pb-2 border-b border-slate-200/80">
@@ -200,7 +200,7 @@ export const AddedItemsWeightScreen: React.FC<AddedItemsWeightScreenProps> = ({
       </div>
 
       {/* 4. Sticky Bottom Bar: Total Weight, Total Value & Checkout Overview Button */}
-      <div className="fixed sm:absolute bottom-0 inset-x-0 p-4 bg-white/95 backdrop-blur-md border-t border-slate-200 z-40 space-y-3 shadow-xl">
+      <div className="fixed bottom-0 left-0 right-0 z-40 max-w-[440px] mx-auto p-4 pb-safe bg-white/95 backdrop-blur-md border-t border-slate-200 space-y-3 shadow-xl">
         {submitError && <p className="text-xs text-rose-600 font-semibold">{submitError}</p>}
         {/* Metrics Row matching Image 4 */}
         <div className="grid grid-cols-2 gap-3">

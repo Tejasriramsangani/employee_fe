@@ -29,12 +29,12 @@ export const MobileFrameShell: React.FC<{ children: React.ReactNode }> = ({ chil
   } = useEmployee();
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-start sm:py-6 p-0">
-      {/* Quick Demo Controller for all 3 States from Image 2 (visible on desktop) */}
+    <div className="min-h-screen w-full bg-gradient-to-br from-[#041A12] via-[#0A3D2B] to-[#062418] flex flex-col items-center justify-start p-0 sm:py-6 sm:px-4">
+      {/* Quick Demo Controller for all States (visible only on desktop) */}
       <div className="hidden sm:flex items-center gap-2 mb-3 px-4 py-2 rounded-2xl bg-slate-800/90 border border-slate-700/80 text-xs text-slate-300 shadow-lg">
         <span className="font-bold text-slate-400 flex items-center gap-1.5">
           <Zap className="w-3.5 h-3.5 text-amber-400" />
-          Preview Image 2 States:
+          Preview States:
         </span>
         <button
           onClick={() => simulateHomeState('ON_PICKUP')}
@@ -68,7 +68,15 @@ export const MobileFrameShell: React.FC<{ children: React.ReactNode }> = ({ chil
         </button>
         <span className="text-slate-600">|</span>
         <button
-          onClick={() => triggerIncomingOrderAlert()}
+          onClick={() => triggerIncomingOrderAlert({
+            pickupCode: 'AKP-10255',
+            customerName: 'Vinay Palakonda',
+            address: 'Benz Circle Main Road, Vijayawada',
+            distanceKm: 3.2,
+            etaMinutes: 12,
+            estimatedWeightKg: 180,
+            categoriesHint: 'Cardboard, Paper, Mixed Plastic',
+          })}
           className="px-2.5 py-1 rounded-lg font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-sm flex items-center gap-1 cursor-pointer transition-all active:scale-95"
         >
           <span>🚨 Alert</span>
@@ -78,60 +86,42 @@ export const MobileFrameShell: React.FC<{ children: React.ReactNode }> = ({ chil
           onClick={() => setPickupStep('STEP_1_SCAN_QR')}
           className="px-2.5 py-1 rounded-lg font-bold bg-slate-700 hover:bg-slate-600 text-emerald-300 shadow-sm cursor-pointer transition-all active:scale-95"
         >
-          <span>🔍 Step 1 QR</span>
-        </button>
-        <button
-          onClick={() => setPickupStep('STEP_2_VERIFIED')}
-          className="px-2.5 py-1 rounded-lg font-bold bg-slate-700 hover:bg-slate-600 text-emerald-300 shadow-sm cursor-pointer transition-all active:scale-95"
-        >
-          <span>✅ Step 2</span>
+          <span>🔍 Step 1</span>
         </button>
         <button
           onClick={() => setPickupStep('STEP_4_CATALOG')}
           className="px-2.5 py-1 rounded-lg font-bold bg-slate-700 hover:bg-slate-600 text-amber-300 shadow-sm cursor-pointer transition-all active:scale-95"
         >
-          <span>🛒 Step 4</span>
+          <span>🛒 Catalog</span>
         </button>
         <button
           onClick={() => setPickupStep('STEP_6_WEIGHTS')}
           className="px-2.5 py-1 rounded-lg font-bold bg-slate-700 hover:bg-slate-600 text-amber-300 shadow-sm cursor-pointer transition-all active:scale-95"
         >
-          <span>⚖️ Step 6</span>
+          <span>⚖️ Weights</span>
         </button>
         <button
           onClick={() => setPickupStep('STEP_10_REVIEW')}
           className="px-2.5 py-1 rounded-lg font-bold bg-slate-700 hover:bg-slate-600 text-yellow-300 shadow-sm cursor-pointer transition-all active:scale-95"
         >
-          <span>📋 Step 10</span>
-        </button>
-        <button
-          onClick={() => setPickupStep('STEP_11_EDIT')}
-          className="px-2.5 py-1 rounded-lg font-bold bg-slate-700 hover:bg-slate-600 text-sky-300 shadow-sm cursor-pointer transition-all active:scale-95"
-        >
-          <span>✏️ Step 11</span>
+          <span>📋 Review</span>
         </button>
         <button
           onClick={() => setPickupStep('STEP_15_OTP')}
           className="px-2.5 py-1 rounded-lg font-bold bg-slate-700 hover:bg-slate-600 text-emerald-300 shadow-sm cursor-pointer transition-all active:scale-95"
         >
-          <span>🔑 Step 15</span>
-        </button>
-        <button
-          onClick={() => setPickupStep('STEP_19_COMPLETED')}
-          className="px-2.5 py-1 rounded-lg font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm cursor-pointer transition-all active:scale-95"
-        >
-          <span>🎉 Step 19</span>
+          <span>🔑 OTP</span>
         </button>
       </div>
 
-      {/* Mobile Smartphone Viewport Container (440px fixed width on desktop) */}
-      <div className="w-full sm:max-w-[440px] min-h-screen sm:min-h-[880px] bg-[#F8FAFC] sm:rounded-[44px] shadow-[0_24px_64px_rgba(0,0,0,0.6)] border sm:border-slate-800 relative flex flex-col overflow-hidden">
-        {/* iOS / Mobile Status Bar */}
-        <header className="sticky top-0 z-50 bg-[#F8FAFC]/90 backdrop-blur-md px-6 pt-3 pb-1 flex items-center justify-between text-slate-800 text-xs font-semibold select-none">
+      {/* Mobile Smartphone Viewport Container (full screen on mobile, 440px luxury frame on desktop) */}
+      <div className="w-full sm:max-w-[440px] min-h-screen sm:min-h-[880px] bg-[#F8FAFC] sm:rounded-[44px] shadow-[0_24px_64px_rgba(0,0,0,0.6)] border-0 sm:border sm:border-slate-800 relative flex flex-col overflow-hidden">
+        {/* iOS / Mobile Status Bar Mock (ONLY visible on desktop frame preview, hidden on mobile) */}
+        <header className="hidden sm:flex sticky top-0 z-50 bg-[#F8FAFC]/90 backdrop-blur-md px-6 pt-3 pb-1 items-center justify-between text-slate-800 text-xs font-semibold select-none">
           <span className="font-bold tracking-tight">9:41</span>
           {/* Dynamic Island Pill Mock with Offline Cache Indicator */}
           <div className="flex items-center gap-2">
-            <div className="w-16 h-3.5 bg-slate-900 rounded-full hidden sm:block"></div>
+            <div className="w-16 h-3.5 bg-slate-900 rounded-full"></div>
             {isOfflineCached && (
               <span className="text-[9px] text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded-md font-bold flex items-center gap-0.5">
                 <Check className="w-2.5 h-2.5 stroke-[3]" /> Cached
@@ -145,12 +135,12 @@ export const MobileFrameShell: React.FC<{ children: React.ReactNode }> = ({ chil
           </div>
         </header>
 
-        {/* In-App Version Update Sentinel Banner (Task 0.5) */}
+        {/* In-App Version Update Sentinel Banner */}
         {hasUpdateAvailable && (
           <div className="bg-gradient-to-r from-[#0A3D2B] to-[#0E4D36] text-white px-4 py-2 flex items-center justify-between text-[11px] shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
             <div className="flex items-center gap-2">
               <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-              <span className="font-semibold">v2.1 Update Available (Live Rapido Nav)</span>
+              <span className="font-semibold">v2.1 Update Available</span>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -172,7 +162,7 @@ export const MobileFrameShell: React.FC<{ children: React.ReactNode }> = ({ chil
         )}
 
         {/* Scrollable Mobile Body */}
-        <main className="flex-1 overflow-y-auto pb-20">{children}</main>
+        <main className="flex-1 overflow-y-auto pb-20 pt-safe">{children}</main>
 
         {/* Release Notes Modal */}
         {isReleaseNotesOpen && (

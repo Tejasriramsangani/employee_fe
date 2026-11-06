@@ -69,7 +69,7 @@ export const AddScrapCatalogScreen: React.FC<AddScrapCatalogScreenProps> = ({
   };
 
   return (
-    <div className="relative min-h-[720px] flex flex-col justify-between bg-[#F8FAFC] text-slate-900 select-none pb-24">
+    <div className="relative min-h-screen flex flex-col justify-between bg-[#F8FAFC] text-slate-900 select-none pb-36">
       <div className="p-4 space-y-3">
         {/* 1. Header with back button, title, and selected count badge */}
         <div className="flex items-center justify-between pb-2 border-b border-slate-200/80">
@@ -184,7 +184,7 @@ export const AddScrapCatalogScreen: React.FC<AddScrapCatalogScreenProps> = ({
       </div>
 
       {/* 5. Sticky Bottom Bar: X Items Selected & Done -> (Yellow Button matching Image 3) */}
-      <div className="fixed sm:absolute bottom-0 inset-x-0 p-4 bg-white/95 backdrop-blur-md border-t border-slate-200 z-40 flex items-center justify-between gap-3 shadow-xl">
+      <div className="fixed bottom-0 left-0 right-0 z-40 max-w-[440px] mx-auto p-4 pb-safe bg-white/95 backdrop-blur-md border-t border-slate-200 flex items-center justify-between gap-3 shadow-xl">
         <div className="text-xs font-bold text-slate-700">
           <span className="font-mono font-black text-sm text-slate-900">
             {selectedCatalogIds.length}

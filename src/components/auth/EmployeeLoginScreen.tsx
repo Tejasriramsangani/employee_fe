@@ -162,7 +162,7 @@ export const EmployeeLoginScreen: React.FC<EmployeeLoginScreenProps> = ({ onLogi
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white flex flex-col justify-between p-5 select-none relative overflow-hidden">
+    <div className="min-h-screen bg-slate-900 text-white flex flex-col justify-between p-5 pt-safe pb-safe select-none relative overflow-hidden">
       {/* Decorative emerald gradient glows */}
       <div className="absolute -top-24 -left-24 w-80 h-80 bg-emerald-600/20 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-24 -right-24 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />

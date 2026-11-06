@@ -10,7 +10,7 @@ export const BottomNavBar: React.FC = () => {
   const scheduledCount = routeStops.filter((s) => s.status !== 'COMPLETED').length;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 max-w-[440px] mx-auto bg-white border-t border-slate-200/90 shadow-[0_-4px_16px_rgba(0,0,0,0.04)] px-4 py-2">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 max-w-[440px] mx-auto bg-white/95 backdrop-blur-md border-t border-slate-200/90 shadow-[0_-4px_16px_rgba(0,0,0,0.04)] px-4 pt-2 pb-safe">
       <div className="grid grid-cols-4 gap-2">
         {/* Tab 1: Home */}
         <button

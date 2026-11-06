@@ -47,7 +47,7 @@ export const PickupVerifiedScreen: React.FC<PickupVerifiedScreenProps> = ({
   }
 
   return (
-    <div className="relative min-h-[720px] flex flex-col justify-between bg-[#F8FAFC] text-slate-900 select-none p-4">
+    <div className="relative min-h-screen flex flex-col justify-between bg-[#F8FAFC] text-slate-900 select-none p-4 pb-safe">
       {/* 1. Header with Back button and centered title */}
       <div>
         <div className="flex items-center justify-between pb-3 border-b border-slate-200/80">

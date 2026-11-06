@@ -60,7 +60,7 @@ export const IncomingPickupAlertModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/80 backdrop-blur-sm p-0 sm:p-4">
-      <div className="w-full max-w-[440px] bg-white rounded-t-[36px] sm:rounded-3xl p-5 shadow-2xl border border-slate-200 space-y-4 animate-in slide-in-from-bottom-8 duration-300">
+      <div className="w-full max-w-[440px] bg-white rounded-t-[36px] sm:rounded-3xl p-5 pb-safe shadow-2xl border border-slate-200 space-y-4 animate-in slide-in-from-bottom-8 duration-300">
         {/* Top Header with Pulsing Alert Badge & Countdown Timer */}
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">

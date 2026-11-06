@@ -52,7 +52,7 @@ export const PickupCompletedScreen: React.FC<PickupCompletedScreenProps> = ({ on
   const finalValue = totals.totalAmount != null ? totals.totalAmount / 100 : totalCollectedValueRupees;
 
   return (
-    <div className="relative min-h-[720px] flex flex-col justify-between bg-[#F8FAFC] text-slate-900 select-none pb-24">
+    <div className="relative min-h-screen flex flex-col justify-between bg-[#F8FAFC] text-slate-900 select-none pb-36">
       <div className="p-4 space-y-4">
         {/* 1. Hero Section with Checkmark Sparkles & Vector Cargo Auto (Matches Image 2) */}
         <div className="pt-2 flex flex-col items-center text-center">
@@ -231,7 +231,7 @@ export const PickupCompletedScreen: React.FC<PickupCompletedScreenProps> = ({ on
       </div>
 
       {/* 3. Sticky Bottom Primary Action: Done (Yellow button matching Image 2) */}
-      <div className="fixed sm:absolute bottom-0 inset-x-0 p-4 bg-white/95 backdrop-blur-md border-t border-slate-200 z-40 shadow-xl">
+      <div className="fixed bottom-0 left-0 right-0 z-40 max-w-[440px] mx-auto p-4 pb-safe bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-xl">
         <button
           type="button"
           onClick={handleDone}

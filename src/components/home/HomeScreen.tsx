@@ -444,7 +444,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       {/* 5. Stop Inspector Drawer Modal */}
       {selectedStopForDrawer && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/70 backdrop-blur-xs p-0 sm:p-4">
-          <div className="w-full max-w-[440px] bg-white rounded-t-[32px] sm:rounded-3xl p-5 shadow-2xl space-y-4 animate-in slide-in-from-bottom-6 duration-200">
+          <div className="w-full max-w-[440px] bg-white rounded-t-[32px] sm:rounded-3xl p-5 pb-safe shadow-2xl space-y-4 animate-in slide-in-from-bottom-6 duration-200">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <span className="font-mono text-[10px] text-slate-400">{selectedStopForDrawer.pickupCode}</span>

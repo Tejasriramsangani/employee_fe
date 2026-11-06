@@ -55,7 +55,7 @@ export const ProfileScreen: React.FC = () => {
   const { stats } = profile;
 
   return (
-    <div className="p-4 space-y-4 select-none pb-24">
+    <div className="p-4 space-y-4 select-none pb-28">
       <div className="p-4 rounded-3xl bg-white border border-slate-200 shadow-sm flex items-center gap-3.5">
         <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#0A3D2B] to-[#10B981] text-white flex items-center justify-center font-black text-xl">
           {initials}

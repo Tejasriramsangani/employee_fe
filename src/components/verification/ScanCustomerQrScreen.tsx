@@ -193,7 +193,7 @@ export const ScanCustomerQrScreen: React.FC<ScanCustomerQrScreenProps> = ({
   }
 
   return (
-    <div className="min-h-[720px] bg-slate-950 text-white flex flex-col">
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col pb-safe">
       <header className="px-4 py-3 flex items-center justify-between border-b border-white/10">
         <button
           type="button"

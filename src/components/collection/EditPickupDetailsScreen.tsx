@@ -70,7 +70,7 @@ export const EditPickupDetailsScreen: React.FC<EditPickupDetailsScreenProps> = (
   };
 
   return (
-    <div className="relative min-h-[720px] flex flex-col justify-between bg-[#F8FAFC] text-slate-900 select-none pb-32">
+    <div className="relative min-h-screen flex flex-col justify-between bg-[#F8FAFC] text-slate-900 select-none pb-44">
       <div className="p-4 space-y-3">
         {/* 1. Header with Back button & title */}
         <div className="flex items-center justify-between pb-2 border-b border-slate-200/80">
@@ -176,7 +176,7 @@ export const EditPickupDetailsScreen: React.FC<EditPickupDetailsScreenProps> = (
       </div>
 
       {/* 4. Sticky Bottom Bar: Total Weight & Total Scrap Value + Save Changes -> */}
-      <div className="fixed sm:absolute bottom-0 inset-x-0 p-4 bg-white/95 backdrop-blur-md border-t border-slate-200 z-40 space-y-3 shadow-xl">
+      <div className="fixed bottom-0 left-0 right-0 z-40 max-w-[440px] mx-auto p-4 pb-safe bg-white/95 backdrop-blur-md border-t border-slate-200 space-y-3 shadow-xl">
         <div className="grid grid-cols-2 gap-3">
           <div className="p-2.5 rounded-xl bg-emerald-50/80 border border-emerald-100 flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-emerald-100 text-[#0A3D2B]">
