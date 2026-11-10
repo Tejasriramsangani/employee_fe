@@ -1,5 +1,6 @@
 "use client";
 
+import { Button, DialogSurface } from '../ui';
 import React, { useState, useEffect } from 'react';
 import {
   Bell,
@@ -59,8 +60,8 @@ export const IncomingPickupAlertModal: React.FC = () => {
   const timerPercentage = (secondsRemaining / 30) * 100;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/80 backdrop-blur-sm p-0 sm:p-4">
-      <div className="w-full max-w-[440px] bg-white rounded-t-[36px] sm:rounded-3xl p-5 pb-safe shadow-2xl border border-slate-200 space-y-4 animate-in slide-in-from-bottom-8 duration-300">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/80  p-0 sm:p-4">
+      <DialogSurface label="New Bulk Pickup Request" className="w-full max-w-[440px] bg-white rounded-t-2xl sm:rounded-3xl p-5 pb-safe shadow-2xl border border-slate-200 space-y-4 animate-in slide-in-from-bottom-8 duration-300">
         {/* Top Header with Pulsing Alert Badge & Countdown Timer */}
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
@@ -69,10 +70,10 @@ export const IncomingPickupAlertModal: React.FC = () => {
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <h3 className="font-black text-slate-900 text-sm tracking-tight">New Bulk Pickup Request</h3>
+                <h3 className="font-bold text-slate-900 text-lg tracking-tight">New Bulk Pickup Request</h3>
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
               </div>
-              <p className="text-[10px] text-slate-400 font-semibold">Priority Commercial Order • Ready for Pickup</p>
+              <p className="text-[11px] text-slate-400 font-semibold">Priority Commercial Order • Ready for Pickup</p>
             </div>
           </div>
 
@@ -96,24 +97,24 @@ export const IncomingPickupAlertModal: React.FC = () => {
                 d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
               />
             </svg>
-            <span className="absolute font-mono font-black text-xs text-slate-800">{secondsRemaining}s</span>
+            <span className="absolute font-mono font-bold text-xs text-slate-800">{secondsRemaining}s</span>
           </div>
         </div>
 
         {/* Customer & Order Details Card */}
         <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100/70 border border-slate-200/90 space-y-2.5">
           <div className="flex items-center justify-between">
-            <span className="font-mono font-black text-xs text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+            <span className="data-value font-mono font-bold text-xs text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
               {incomingOrder.pickupCode}
             </span>
             <div className="text-right">
-              <span className="text-[10px] font-bold text-slate-400 uppercase block">Distance</span>
+              <span className="text-[11px] font-bold text-slate-400 uppercase block">Distance</span>
               <span className="font-mono font-bold text-xs text-slate-900">{incomingOrder.distanceKm} km • {incomingOrder.etaMinutes} mins</span>
             </div>
           </div>
 
           <div>
-            <div className="font-black text-slate-900 text-sm">{incomingOrder.customerName}</div>
+            <div className="font-bold text-slate-900 text-sm">{incomingOrder.customerName}</div>
             <div className="text-xs text-slate-600 flex items-center gap-1.5 mt-1">
               <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
               <span className="truncate">{incomingOrder.address}</span>
@@ -125,37 +126,37 @@ export const IncomingPickupAlertModal: React.FC = () => {
               <Scale className="w-3.5 h-3.5 text-emerald-600" />
               <span className="font-bold">Estimated Scrap:</span>
             </div>
-            <span className="font-mono font-black text-emerald-800 text-sm">
+            <span className="data-value font-mono font-bold text-emerald-800 text-sm">
               {incomingOrder.estimatedWeightKg} kg
             </span>
           </div>
 
-          <p className="text-[10px] text-slate-500 font-medium italic">
+          <p className="text-[11px] text-slate-500 font-medium italic">
             Items: {incomingOrder.categoriesHint}
           </p>
         </div>
 
         {/* Actions: Accept (Large Green) vs Decline */}
         <div className="space-y-2 pt-1">
-          <button
+          <Button
             type="button"
             onClick={handleAccept}
-            className="w-full py-3.5 rounded-2xl bg-[#0A3D2B] text-white font-extrabold text-xs hover:bg-[#0E4D36] transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/20 cursor-pointer active:scale-[0.98]"
+            className="w-full py-3.5 rounded-2xl bg-brand text-white font-extrabold text-xs hover:bg-[var(--brand-hover)] transition-all flex items-center justify-center gap-2 shadow-lg  cursor-pointer active:scale-[0.98]"
           >
             <Check className="w-4 h-4 text-emerald-400 stroke-[3]" />
             <span>Accept Pickup Order ({secondsRemaining}s)</span>
             <ArrowRight className="w-4 h-4 text-emerald-400" />
-          </button>
+          </Button>
 
-          <button
+          <Button
             type="button"
             onClick={() => setIsIncomingAlertOpen(false)}
             className="w-full py-2.5 rounded-xl text-slate-500 font-bold text-xs hover:text-slate-800 transition-colors cursor-pointer"
           >
             Decline / Pass to Next Collector
-          </button>
+          </Button>
         </div>
-      </div>
+      </DialogSurface>
     </div>
   );
 };

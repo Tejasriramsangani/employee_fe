@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from '../ui';
 import React, { useState } from 'react';
 import { ArrowLeft, AlertCircle, Send, MapPin, User, Truck } from 'lucide-react';
 import { fieldOpsApi, PickerRequestPayload } from '../../services/api';
@@ -60,7 +61,7 @@ const Section: React.FC<{ icon: React.ReactNode; title: string; children: React.
   children,
 }) => (
   <div className="space-y-3">
-    <div className="flex items-center gap-2 text-emerald-300 text-xs font-black uppercase tracking-wider">
+    <div className="flex items-center gap-2 text-emerald-300 text-xs font-bold uppercase tracking-wider">
       {icon}
       <span>{title}</span>
     </div>
@@ -157,16 +158,16 @@ export const PickerRequestForm: React.FC<PickerRequestFormProps> = ({
   return (
     <form onSubmit={handleSubmit} className="space-y-5" noValidate>
       <div className="flex items-center gap-2">
-        <button
+        <Button
           type="button"
           onClick={onBack}
           className="p-1.5 -ml-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/60 cursor-pointer"
           aria-label="Back"
         >
           <ArrowLeft className="w-4 h-4" />
-        </button>
+        </Button>
         <div>
-          <h3 className="text-sm font-black text-white">Become a freelance picker</h3>
+          <h3 className="text-lg font-bold text-white">Become a freelance picker</h3>
           <p className="text-[11px] text-slate-400">Fill in your details. Our team reviews every request.</p>
         </div>
       </div>
@@ -180,7 +181,7 @@ export const PickerRequestForm: React.FC<PickerRequestFormProps> = ({
 
       <Section icon={<User className="w-3.5 h-3.5" />} title="About you">
         <Field label="Full name" required error={errors.fullName}>
-          <input className={inputCls} value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="As on your ID" maxLength={80} autoComplete="name" />
+          <input aria-label="As on your ID" className={inputCls} value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="As on your ID" maxLength={80} autoComplete="name" />
         </Field>
         <Field label="Mobile number (your login)">
           <div className="flex items-center rounded-xl bg-slate-900/60 border border-slate-700 px-3 py-2.5 text-sm font-mono text-emerald-300">
@@ -188,32 +189,32 @@ export const PickerRequestForm: React.FC<PickerRequestFormProps> = ({
           </div>
         </Field>
         <Field label="Alternate mobile" error={errors.alternateMobile}>
-          <input className={inputCls} inputMode="numeric" maxLength={10} value={alternateMobile} onChange={(e) => setAlternateMobile(e.target.value.replace(/\D/g, ''))} placeholder="Optional" />
+          <input aria-label="Optional" className={inputCls} inputMode="numeric" maxLength={10} value={alternateMobile} onChange={(e) => setAlternateMobile(e.target.value.replace(/\D/g, ''))} placeholder="Optional" />
         </Field>
         <Field label="Email" error={errors.email}>
-          <input className={inputCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Optional" autoComplete="email" />
+          <input aria-label="Optional" className={inputCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Optional" autoComplete="email" />
         </Field>
       </Section>
 
       <Section icon={<MapPin className="w-3.5 h-3.5" />} title="Home address">
         <Field label="House no. / street" required error={errors.line1}>
-          <input className={inputCls} value={line1} onChange={(e) => setLine1(e.target.value)} placeholder="e.g. 12-3-45, Gandhi Street" maxLength={200} autoComplete="address-line1" />
+          <input aria-label="e.g. 12-3-45, Gandhi Street" className={inputCls} value={line1} onChange={(e) => setLine1(e.target.value)} placeholder="e.g. 12-3-45, Gandhi Street" maxLength={200} autoComplete="address-line1" />
         </Field>
         <Field label="Area / locality" required error={errors.area}>
-          <input className={inputCls} value={area} onChange={(e) => setArea(e.target.value)} placeholder="e.g. Benz Circle" maxLength={100} />
+          <input aria-label="e.g. Benz Circle" className={inputCls} value={area} onChange={(e) => setArea(e.target.value)} placeholder="e.g. Benz Circle" maxLength={100} />
         </Field>
         <Field label="Landmark">
-          <input className={inputCls} value={landmark} onChange={(e) => setLandmark(e.target.value)} placeholder="Optional - near temple, school..." maxLength={120} />
+          <input aria-label="Optional - near temple, school..." className={inputCls} value={landmark} onChange={(e) => setLandmark(e.target.value)} placeholder="Optional - near temple, school..." maxLength={120} />
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="City" required error={errors.city}>
             <input className={inputCls} value={city} onChange={(e) => setCity(e.target.value)} maxLength={80} autoComplete="address-level2" />
           </Field>
           <Field label="Pincode" required error={errors.pincode}>
-            <input className={inputCls} inputMode="numeric" maxLength={6} value={pincode} onChange={(e) => setPincode(e.target.value.replace(/\D/g, ''))} placeholder="520010" autoComplete="postal-code" />
+            <input aria-label="520010" className={inputCls} inputMode="numeric" maxLength={6} value={pincode} onChange={(e) => setPincode(e.target.value.replace(/\D/g, ''))} placeholder="520010" autoComplete="postal-code" />
           </Field>
           <Field label="District">
-            <input className={inputCls} value={district} onChange={(e) => setDistrict(e.target.value)} placeholder="NTR" maxLength={80} />
+            <input aria-label="NTR" className={inputCls} value={district} onChange={(e) => setDistrict(e.target.value)} placeholder="NTR" maxLength={80} />
           </Field>
           <Field label="State">
             <input className={inputCls} value={state} onChange={(e) => setState(e.target.value)} maxLength={60} />
@@ -225,7 +226,7 @@ export const PickerRequestForm: React.FC<PickerRequestFormProps> = ({
         <Field label="I want to work as">
           <div className="grid grid-cols-2 gap-2">
             {WORK_TYPES.map((w) => (
-              <button
+              <Button
                 key={w.value}
                 type="button"
                 onClick={() => setWorkType(w.value)}
@@ -236,8 +237,8 @@ export const PickerRequestForm: React.FC<PickerRequestFormProps> = ({
                 }`}
               >
                 <div className="text-xs font-bold">{w.label}</div>
-                <div className="text-[10px] text-slate-400 mt-0.5 leading-snug">{w.hint}</div>
-              </button>
+                <div className="text-[11px] text-slate-400 mt-0.5 leading-snug">{w.hint}</div>
+              </Button>
             ))}
           </div>
         </Field>
@@ -250,12 +251,12 @@ export const PickerRequestForm: React.FC<PickerRequestFormProps> = ({
         </Field>
         {vehicleType !== 'NONE' && (
           <Field label="Vehicle number">
-            <input className={`${inputCls} uppercase`} value={vehicleNumber} onChange={(e) => setVehicleNumber(e.target.value)} placeholder="AP 16 XX 1234" maxLength={20} />
+            <input aria-label="AP 16 XX 1234" className={`${inputCls} uppercase`} value={vehicleNumber} onChange={(e) => setVehicleNumber(e.target.value)} placeholder="AP 16 XX 1234" maxLength={20} />
           </Field>
         )}
         <div className="grid grid-cols-2 gap-3">
           <Field label="Experience (years)" error={errors.experienceYears}>
-            <input className={inputCls} inputMode="numeric" value={experienceYears} onChange={(e) => setExperienceYears(e.target.value.replace(/\D/g, '').slice(0, 2))} placeholder="0" />
+            <input aria-label="0" className={inputCls} inputMode="numeric" value={experienceYears} onChange={(e) => setExperienceYears(e.target.value.replace(/\D/g, '').slice(0, 2))} placeholder="0" />
           </Field>
           <Field label="Availability">
             <select className={inputCls} value={availability} onChange={(e) => setAvailability(e.target.value as PickerRequestPayload['availability'])}>
@@ -266,15 +267,15 @@ export const PickerRequestForm: React.FC<PickerRequestFormProps> = ({
           </Field>
         </div>
         <Field label="Anything else we should know?">
-          <textarea className={`${inputCls} resize-none`} rows={3} maxLength={300} value={about} onChange={(e) => setAbout(e.target.value)} placeholder="Optional - past work, areas you can cover..." />
-          <p className="text-[10px] text-slate-500 mt-1 text-right">{about.length}/300</p>
+          <textarea aria-label="Optional - past work, areas you can cover..." className={`${inputCls} resize-none`} rows={3} maxLength={300} value={about} onChange={(e) => setAbout(e.target.value)} placeholder="Optional - past work, areas you can cover..." />
+          <p className="text-[11px] text-slate-500 mt-1 text-right">{about.length}/300</p>
         </Field>
       </Section>
 
-      <button
+      <Button
         type="submit"
         disabled={submitting}
-        className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 active:scale-[0.99] text-slate-950 font-black text-sm tracking-wide transition-all shadow-lg shadow-emerald-950/40 flex items-center justify-center gap-2 disabled:opacity-60 disabled:pointer-events-none cursor-pointer"
+        className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 active:scale-[0.99] text-slate-950 font-bold text-sm tracking-wide transition-all shadow-lg  flex items-center justify-center gap-2 disabled:opacity-60 disabled:pointer-events-none cursor-pointer"
       >
         {submitting ? (
           <div className="w-5 h-5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
@@ -284,8 +285,8 @@ export const PickerRequestForm: React.FC<PickerRequestFormProps> = ({
             <span>Submit request</span>
           </>
         )}
-      </button>
-      <p className="text-[10px] text-slate-500 text-center leading-relaxed">
+      </Button>
+      <p className="text-[11px] text-slate-500 text-center leading-relaxed">
         We do not collect Aadhaar or other ID numbers here. If you are approved, our team will ask for your KYC documents.
       </p>
     </form>

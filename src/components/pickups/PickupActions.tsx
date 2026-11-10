@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from '../ui';
 import React from 'react';
 import { Compass, Phone, Play, ArrowRight } from 'lucide-react';
 import { useEmployee, RouteStop } from '../../context/EmployeeContext';
@@ -42,10 +43,10 @@ export const PickupActions: React.FC<PickupActionsProps> = ({ stop, onStart, var
     : 'border border-slate-200 text-slate-800 hover:bg-slate-50';
   const navClass = dark
     ? 'bg-white/10 hover:bg-white/20 border border-emerald-400/40 text-emerald-100'
-    : 'border border-[#0A3D2B]/30 text-[#0A3D2B] bg-emerald-50 hover:bg-emerald-100';
+    : 'border border-brand/30 text-brand bg-emerald-50 hover:bg-emerald-100';
   const primaryClass = dark
-    ? 'bg-[#F59E0B] text-slate-950 hover:bg-amber-400 shadow-lg shadow-amber-950/30'
-    : 'bg-[#0A3D2B] text-white hover:bg-[#0E4D36] shadow-sm';
+    ? 'bg-gold text-slate-950 hover:bg-amber-400 shadow-lg '
+    : 'bg-brand text-white hover:bg-[var(--brand-hover)] shadow-sm';
 
   const call = (
     <a
@@ -62,7 +63,7 @@ export const PickupActions: React.FC<PickupActionsProps> = ({ stop, onStart, var
   );
 
   const navigate = (full: boolean) => (
-    <button
+    <Button
       key="navigate"
       type="button"
       onClick={() => startLiveNavigation(stop)}
@@ -72,7 +73,7 @@ export const PickupActions: React.FC<PickupActionsProps> = ({ stop, onStart, var
     >
       <Compass className={`${full ? 'w-4 h-4' : 'w-3.5 h-3.5'} ${full && !dark ? 'text-emerald-400' : 'text-emerald-500'}`} />
       <span>Navigate</span>
-    </button>
+    </Button>
   );
 
   // 3. Already collecting: just get back into the flow.
@@ -80,14 +81,14 @@ export const PickupActions: React.FC<PickupActionsProps> = ({ stop, onStart, var
     return (
       <div className="grid grid-cols-[1fr_2fr] gap-2">
         {call}
-        <button
+        <Button
           type="button"
           onClick={() => onStart(stop)}
-          className={`py-2.5 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] transition ${primaryClass}`}
+          className={`py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] transition ${primaryClass}`}
         >
           <span>Continue Pickup</span>
           <ArrowRight className="w-4 h-4" />
-        </button>
+        </Button>
       </div>
     );
   }
@@ -100,14 +101,14 @@ export const PickupActions: React.FC<PickupActionsProps> = ({ stop, onStart, var
     <div className="grid grid-cols-3 gap-2">
       {call}
       {navigate(false)}
-      <button
+      <Button
         type="button"
         onClick={() => onStart(stop)}
-        className={`py-2.5 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] transition ${primaryClass}`}
+        className={`py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] transition ${primaryClass}`}
       >
         <Play className="w-3.5 h-3.5 fill-current" />
         <span>Start Pickup</span>
-      </button>
+      </Button>
     </div>
   );
 };

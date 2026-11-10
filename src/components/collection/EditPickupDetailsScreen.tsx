@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from '../ui';
 import React from 'react';
 import {
   ChevronLeft,
@@ -70,18 +71,18 @@ export const EditPickupDetailsScreen: React.FC<EditPickupDetailsScreenProps> = (
   };
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between bg-[#F8FAFC] text-slate-900 select-none pb-44">
+    <div className="relative min-h-screen flex flex-col justify-between bg-canvas text-slate-900 select-none pb-44">
       <div className="p-4 space-y-3">
         {/* 1. Header with Back button & title */}
         <div className="flex items-center justify-between pb-2 border-b border-slate-200/80">
-          <button
+          <Button aria-label="Previous"
             type="button"
             onClick={handleBack}
             className="p-1.5 rounded-full hover:bg-slate-100 text-slate-700 transition cursor-pointer active:scale-95"
           >
             <ChevronLeft className="w-6 h-6" />
-          </button>
-          <h1 className="text-sm font-black text-slate-900 tracking-tight">
+          </Button>
+          <h1 className="text-sm font-bold text-slate-900 tracking-tight">
             Edit Pickup Details
           </h1>
           <div className="w-8" />
@@ -99,7 +100,7 @@ export const EditPickupDetailsScreen: React.FC<EditPickupDetailsScreenProps> = (
 
         {/* 3. Selected Items Section (Matches Image 6) */}
         <div className="space-y-2.5 pt-1">
-          <h2 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+          <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wider">
             Selected Items
           </h2>
 
@@ -125,14 +126,14 @@ export const EditPickupDetailsScreen: React.FC<EditPickupDetailsScreenProps> = (
                     </div>
                   </div>
 
-                  <button
+                  <Button aria-label="Delete item"
                     type="button"
                     onClick={() => removeCollectedItem(item.id)}
                     className="p-2 rounded-xl text-rose-500 hover:bg-rose-50 transition cursor-pointer"
                     title="Delete item"
                   >
                     <Trash2 className="w-4 h-4 stroke-[2.2]" />
-                  </button>
+                  </Button>
                 </div>
 
                 {/* Weight Input & Live Value Subtotal */}
@@ -146,14 +147,14 @@ export const EditPickupDetailsScreen: React.FC<EditPickupDetailsScreenProps> = (
                       onChange={(e) =>
                         updateCollectedItemWeight(item.id, parseFloat(e.target.value) || 0)
                       }
-                      className="w-20 px-2 py-1.5 text-center font-mono font-black text-xs rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 transition"
+                      className="w-20 px-2 py-1.5 text-center font-sans font-bold text-xs rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 transition"
                     />
                     <span className="px-2 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-slate-600">
                       kg
                     </span>
                   </div>
 
-                  <div className="font-mono font-black text-sm text-emerald-800">
+                  <div className="font-mono font-bold text-sm text-emerald-800">
                     ₹ {item.lineTotalRupees}
                   </div>
                 </div>
@@ -163,28 +164,28 @@ export const EditPickupDetailsScreen: React.FC<EditPickupDetailsScreenProps> = (
 
           {/* Secondary Action: + Add More Scrap */}
           <div className="pt-1">
-            <button
+            <Button aria-label="Add"
               type="button"
               onClick={handleAddMore}
               className="w-full py-3 rounded-2xl bg-white border border-slate-200/90 hover:bg-slate-50 text-slate-800 font-bold text-xs transition flex items-center justify-center gap-2 shadow-xs cursor-pointer active:scale-[0.99]"
             >
-              <Plus className="w-4 h-4 text-[#0A3D2B]" />
+              <Plus className="w-4 h-4 text-brand" />
               <span>Add More Scrap</span>
-            </button>
+            </Button>
           </div>
         </div>
       </div>
 
       {/* 4. Sticky Bottom Bar: Total Weight & Total Scrap Value + Save Changes -> */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 max-w-[440px] mx-auto p-4 pb-safe bg-white/95 backdrop-blur-md border-t border-slate-200 space-y-3 shadow-xl">
+      <div className="fixed bottom-0 left-0 right-0 z-40 max-w-[440px] mx-auto p-4 pb-safe bg-white/95  border-t border-slate-200 space-y-3 shadow-xl">
         <div className="grid grid-cols-2 gap-3">
           <div className="p-2.5 rounded-xl bg-emerald-50/80 border border-emerald-100 flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-emerald-100 text-[#0A3D2B]">
+            <div className="p-1.5 rounded-lg bg-emerald-100 text-brand">
               <Scale className="w-4 h-4" />
             </div>
             <div>
-              <div className="text-[10px] text-slate-400 font-semibold">Total Weight</div>
-              <div className="font-mono font-black text-xs text-slate-900 mt-0.5">
+              <div className="text-[11px] text-slate-400 font-semibold">Total Weight</div>
+              <div className="font-mono font-bold text-xs text-slate-900 mt-0.5">
                 {totalCollectedWeightKg} kg
               </div>
             </div>
@@ -195,22 +196,22 @@ export const EditPickupDetailsScreen: React.FC<EditPickupDetailsScreenProps> = (
               <Coins className="w-4 h-4" />
             </div>
             <div>
-              <div className="text-[10px] text-slate-400 font-semibold">Total Scrap Value</div>
-              <div className="font-mono font-black text-xs text-slate-900 mt-0.5">
+              <div className="text-[11px] text-slate-400 font-semibold">Total Scrap Value</div>
+              <div className="font-mono font-bold text-xs text-slate-900 mt-0.5">
                 ₹ {totalCollectedValueRupees}
               </div>
             </div>
           </div>
         </div>
 
-        <button
+        <Button
           type="button"
           onClick={handleSave}
-          className="w-full py-3.5 px-6 rounded-2xl bg-[#0A3D2B] hover:bg-[#0E4D36] text-white font-black text-xs tracking-wide shadow-lg shadow-emerald-950/20 flex items-center justify-center gap-2 cursor-pointer transition active:scale-[0.99]"
+          className="w-full py-3.5 px-6 rounded-2xl bg-brand hover:bg-[var(--brand-hover)] text-white font-bold text-xs tracking-wide shadow-lg  flex items-center justify-center gap-2 cursor-pointer transition active:scale-[0.99]"
         >
           <span>Save Changes</span>
           <ArrowRight className="w-4 h-4" />
-        </button>
+        </Button>
       </div>
     </div>
   );

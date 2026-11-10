@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from '../ui';
 import React, { useState, useEffect } from 'react';
 import {
   Truck,
@@ -162,32 +163,30 @@ export const EmployeeLoginScreen: React.FC<EmployeeLoginScreenProps> = ({ onLogi
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white flex flex-col justify-between p-5 pt-safe pb-safe select-none relative overflow-hidden">
+    <div className="min-h-screen bg-canvas text-ink flex flex-col justify-between p-5 pt-safe pb-safe select-none relative overflow-hidden">
       {/* Decorative emerald gradient glows */}
-      <div className="absolute -top-24 -left-24 w-80 h-80 bg-emerald-600/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-24 -right-24 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
 
       {/* Top Header */}
       <div className="relative z-10 pt-4 text-center space-y-2">
-        <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-emerald-600 to-emerald-400 text-slate-950 flex items-center justify-center mx-auto shadow-xl shadow-emerald-950/50">
+        <div className="w-16 h-16 rounded-3xl bg-gold text-brand flex items-center justify-center mx-auto shadow-xl ">
           <Truck className="w-8 h-8 stroke-[2.2]" />
         </div>
-        <h1 className="text-xl font-black tracking-tight text-white">ASLI KAATA FIELD OPS</h1>
-        <p className="text-xs text-emerald-300 font-semibold tracking-wider uppercase">
+        <h1 className="text-xl font-bold tracking-tight text-ink">ASLI KAATA FIELD OPS</h1>
+        <p className="text-xs text-brand font-semibold tracking-wider uppercase">
           Driver & Doorstep Scrap Collector Companion
         </p>
       </div>
 
       {/* Main Card */}
-      <div className="relative z-10 bg-slate-800/80 backdrop-blur-xl border border-slate-700/80 rounded-3xl p-5 shadow-2xl space-y-4 my-4">
+      <div className="relative z-10 bg-white border border-line rounded-2xl p-5 shadow-sm space-y-4 my-6">
         {noticeMessage && (
-          <div className="p-3 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-200 text-xs font-semibold flex items-start gap-2">
+          <div className="p-3 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-800 text-xs font-semibold flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
             <span>{noticeMessage}</span>
           </div>
         )}
         {errorMessage && (
-          <div className="p-3 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center gap-2">
+          <div className="p-3 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-700 text-xs font-semibold flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
             <span>{errorMessage}</span>
           </div>
@@ -196,30 +195,30 @@ export const EmployeeLoginScreen: React.FC<EmployeeLoginScreenProps> = ({ onLogi
         {step === 'PHONE' && (
           <form onSubmit={handleSendOtp} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+              <label htmlFor="employee-mobile" className="block text-xs font-bold text-copy uppercase tracking-wider mb-2">
                 Mobile Number
               </label>
-              <div className="flex items-center rounded-2xl bg-slate-900/90 border border-slate-700 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all p-2.5">
-                <span className="font-mono text-sm font-bold text-emerald-400 px-2 border-r border-slate-700">
+              <div className="flex items-center rounded-2xl bg-canvas border border-line focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all p-2.5">
+                <span className="font-mono text-sm font-bold text-brand px-2 border-r border-line">
                   +91
                 </span>
-                <input
+                <input id="employee-mobile" aria-label="Mobile number"
                   type="tel"
                   maxLength={10}
                   value={mobile}
                   onChange={(e) => setMobile(e.target.value.replace(/\D/g, ''))}
                   placeholder="10-digit mobile number"
-                  className="w-full bg-transparent text-white font-mono text-base font-bold pl-3 focus:outline-none placeholder:text-slate-600 tracking-wider"
+                  className="w-full bg-transparent text-ink font-sans text-base font-bold pl-3 focus:outline-none placeholder:text-slate-600 tracking-wider"
                   autoFocus
                 />
                 <Phone className="w-4 h-4 text-slate-500 mr-1" />
               </div>
             </div>
 
-            <button
+            <Button
               type="submit"
               disabled={isLoading || mobile.length < 10}
-              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 active:scale-[0.99] text-slate-950 font-black text-sm tracking-wide transition-all shadow-lg shadow-emerald-950/40 flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+              className="w-full py-3.5 rounded-2xl bg-gold hover:bg-highlight active:scale-[0.99] text-slate-950 font-bold text-sm tracking-wide transition-all shadow-lg  flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
             >
               {isLoading ? (
                 <div className="w-5 h-5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
@@ -229,7 +228,7 @@ export const EmployeeLoginScreen: React.FC<EmployeeLoginScreenProps> = ({ onLogi
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
-            </button>
+            </Button>
 
             <p className="text-center text-[11px] text-slate-500">
               New here? Enter your number and we will help you apply to become a picker.
@@ -240,9 +239,9 @@ export const EmployeeLoginScreen: React.FC<EmployeeLoginScreenProps> = ({ onLogi
         {step === 'OTP' && (
           <form onSubmit={handleVerifyOtp} className="space-y-4">
             <div className="text-center space-y-1">
-              <h3 className="text-sm font-bold text-white">Enter 6-Digit OTP</h3>
+              <h3 className="text-lg font-bold text-ink">Enter 6-Digit OTP</h3>
               <p className="text-xs text-slate-400 font-medium">
-                Sent to <span className="font-mono text-emerald-400 font-bold">+91 {mobile}</span>
+                Sent to <span className="font-mono text-brand font-bold">+91 {mobile}</span>
               </p>
             </div>
 
@@ -258,7 +257,7 @@ export const EmployeeLoginScreen: React.FC<EmployeeLoginScreenProps> = ({ onLogi
                   value={digit}
                   onChange={(e) => handleOtpChange(idx, e.target.value)}
                   onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                  className="w-11 h-13 rounded-2xl bg-slate-900 border-2 border-slate-700 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-center font-mono font-black text-xl text-white focus:outline-none transition-all"
+                  className="w-11 h-13 rounded-2xl bg-canvas border-2 border-line focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-center font-sans font-bold text-xl text-ink focus:outline-none transition-all"
                   autoFocus={idx === 0}
                 />
               ))}
@@ -266,23 +265,23 @@ export const EmployeeLoginScreen: React.FC<EmployeeLoginScreenProps> = ({ onLogi
 
             {devOtp ? (
               /* SMS_PROVIDER=mock: no SMS is sent, so show the OTP that was just generated */
-              <div className="p-3 rounded-2xl bg-emerald-950/60 border border-emerald-800/80 text-[11px] text-emerald-300 space-y-1.5">
+              <div className="p-3 rounded-2xl bg-soft border border-emerald-800/80 text-[11px] text-brand space-y-1.5">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 font-bold min-w-0">
                     <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                     <span className="truncate">
-                      Test OTP: <strong className="text-white font-mono text-sm tracking-widest">{devOtp}</strong>
+                      Test OTP: <strong className="text-ink font-mono text-sm tracking-widest">{devOtp}</strong>
                     </span>
                   </div>
-                  <button
+                  <Button
                     type="button"
                     onClick={fillDevOtp}
-                    className="shrink-0 px-2.5 py-1 rounded-lg bg-emerald-600 text-slate-950 font-black text-[10px] uppercase tracking-wider hover:bg-emerald-500 cursor-pointer"
+                    className="shrink-0 px-2.5 py-1 rounded-lg bg-gold text-slate-950 font-bold text-[11px] uppercase tracking-wider hover:bg-gold cursor-pointer"
                   >
                     Fill
-                  </button>
+                  </Button>
                 </div>
-                <p className="text-[10px] text-emerald-400/80">
+                <p className="text-[11px] text-brand">
                   SMS provider is in <strong>mock</strong> mode, so no SMS was sent. This code is generated for
                   this login only and is shown here for testing.
                 </p>
@@ -293,10 +292,10 @@ export const EmployeeLoginScreen: React.FC<EmployeeLoginScreenProps> = ({ onLogi
               </p>
             )}
 
-            <button
+            <Button
               type="submit"
               disabled={isLoading || otp.some((d) => !d)}
-              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 active:scale-[0.99] text-slate-950 font-black text-sm tracking-wide transition-all shadow-lg shadow-emerald-950/40 flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+              className="w-full py-3.5 rounded-2xl bg-gold hover:bg-highlight active:scale-[0.99] text-slate-950 font-bold text-sm tracking-wide transition-all shadow-lg  flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
             >
               {isLoading ? (
                 <div className="w-5 h-5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
@@ -306,26 +305,26 @@ export const EmployeeLoginScreen: React.FC<EmployeeLoginScreenProps> = ({ onLogi
                   <span>Verify & Access Route</span>
                 </>
               )}
-            </button>
+            </Button>
 
             <div className="flex items-center justify-between text-xs pt-1">
-              <button
+              <Button
                 type="button"
                 onClick={backToPhone}
-                className="text-slate-400 hover:text-white transition-colors cursor-pointer"
+                className="text-slate-400 hover:text-ink transition-colors cursor-pointer"
               >
                 Change Number
-              </button>
+              </Button>
               {cooldown > 0 ? (
                 <span className="text-slate-500 font-mono text-[11px]">Resend in {cooldown}s</span>
               ) : (
-                <button
+                <Button
                   type="button"
                   onClick={() => handleSendOtp()}
-                  className="text-emerald-400 font-bold hover:underline cursor-pointer"
+                  className="text-brand font-bold hover:underline cursor-pointer"
                 >
                   Resend OTP
-                </button>
+                </Button>
               )}
             </div>
           </form>
@@ -337,9 +336,9 @@ export const EmployeeLoginScreen: React.FC<EmployeeLoginScreenProps> = ({ onLogi
               <UserPlus className="w-6 h-6" />
             </div>
             <div className="space-y-1">
-              <h3 className="text-sm font-black text-white">You don&apos;t have an account on this app</h3>
+              <h3 className="text-lg font-bold text-ink">You don&apos;t have an account on this app</h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                <span className="font-mono text-emerald-400 font-bold">+91 {cleanMobile()}</span> is not registered
+                <span className="font-mono text-brand font-bold">+91 {cleanMobile()}</span> is not registered
                 as an ASLI KAATA picker, so we have not sent an OTP.
               </p>
             </div>
@@ -354,7 +353,7 @@ export const EmployeeLoginScreen: React.FC<EmployeeLoginScreenProps> = ({ onLogi
                   Submitted {formatDate(requestInfo.submittedAt)}. We will get back to you by SMS once our team
                   decides. You can log in with this number after approval.
                 </p>
-                <button
+                <Button
                   type="button"
                   onClick={refreshStatus}
                   disabled={isLoading}
@@ -362,45 +361,45 @@ export const EmployeeLoginScreen: React.FC<EmployeeLoginScreenProps> = ({ onLogi
                 >
                   <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
                   Check status
-                </button>
+                </Button>
               </div>
             )}
 
             {requestInfo?.status === 'REJECTED' && (
               <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-left space-y-1">
-                <div className="text-rose-300 text-xs font-bold">
+                <div className="text-rose-700 text-xs font-bold">
                   Request {requestInfo.requestCode} was not approved
                 </div>
                 {requestInfo.rejectionReason && (
-                  <p className="text-[11px] text-slate-300">Reason: {requestInfo.rejectionReason}</p>
+                  <p className="text-[11px] text-copy">Reason: {requestInfo.rejectionReason}</p>
                 )}
                 <p className="text-[11px] text-slate-500">You are welcome to apply again.</p>
               </div>
             )}
 
             {requestInfo?.status !== 'PENDING' && (
-              <button
+              <Button
                 type="button"
                 onClick={() => {
                   setErrorMessage(null);
                   setStep('REQUEST_FORM');
                 }}
-                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-slate-950 font-black text-sm tracking-wide transition-all shadow-lg shadow-emerald-950/40 flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-3.5 rounded-2xl bg-gold hover:bg-highlight text-slate-950 font-bold text-sm tracking-wide transition-all shadow-lg  flex items-center justify-center gap-2 cursor-pointer"
               >
                 <UserPlus className="w-4 h-4" />
                 <span>
                   {requestInfo?.status === 'REJECTED' ? 'Apply again' : 'Raise a request to become a freelancer'}
                 </span>
-              </button>
+              </Button>
             )}
 
-            <button
+            <Button
               type="button"
               onClick={backToPhone}
-              className="text-xs text-slate-400 hover:text-white transition-colors cursor-pointer"
+              className="text-xs text-slate-400 hover:text-ink transition-colors cursor-pointer"
             >
               Try a different number
-            </button>
+            </Button>
           </div>
         )}
 
@@ -427,34 +426,34 @@ export const EmployeeLoginScreen: React.FC<EmployeeLoginScreenProps> = ({ onLogi
 
         {step === 'REQUEST_SENT' && (
           <div className="space-y-4 text-center py-2">
-            <div className="w-16 h-16 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto">
+            <div className="w-16 h-16 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-brand flex items-center justify-center mx-auto">
               <CheckCircle2 className="w-9 h-9" />
             </div>
             <div className="space-y-1.5">
-              <h3 className="text-base font-black text-white">Request submitted!</h3>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                Thank you for applying. <strong className="text-white">We will get back to you</strong> after our team
+              <h3 className="text-base font-bold text-ink">Request submitted!</h3>
+              <p className="text-xs text-copy leading-relaxed">
+                Thank you for applying. <strong className="text-ink">We will get back to you</strong> after our team
                 reviews your details.
               </p>
             </div>
             {submittedCode && (
-              <div className="inline-block px-4 py-2 rounded-xl bg-slate-900 border border-slate-700">
-                <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Your request ID</div>
-                <div className="font-mono font-black text-emerald-400 text-lg tracking-wider">{submittedCode}</div>
+              <div className="inline-block px-4 py-2 rounded-xl bg-canvas border border-line">
+                <div className="text-[11px] uppercase tracking-wider text-slate-500 font-bold">Your request ID</div>
+                <div className="font-mono font-bold text-brand text-lg tracking-wider">{submittedCode}</div>
               </div>
             )}
-            <ul className="text-left text-[11px] text-slate-400 space-y-1.5 bg-slate-900/60 border border-slate-700/70 rounded-2xl p-3">
-              <li>• We will send you an SMS on <span className="font-mono text-slate-200">+91 {cleanMobile()}</span> once it is decided.</li>
+            <ul className="text-left text-[11px] text-slate-400 space-y-1.5 bg-canvas border border-line rounded-2xl p-3">
+              <li>• We will send you an SMS on <span className="font-mono text-copy">+91 {cleanMobile()}</span> once it is decided.</li>
               <li>• After approval, log in here with the same number and OTP.</li>
               <li>• You can check the status any time by entering your number on the login screen.</li>
             </ul>
-            <button
+            <Button
               type="button"
               onClick={backToPhone}
-              className="w-full py-3 rounded-2xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-sm transition-all cursor-pointer"
+              className="w-full py-3 rounded-2xl bg-soft hover:bg-slate-600 text-ink font-bold text-sm transition-all cursor-pointer"
             >
               Back to login
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -465,7 +464,7 @@ export const EmployeeLoginScreen: React.FC<EmployeeLoginScreenProps> = ({ onLogi
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
           <span>Doorstep Weighing & KYC Protected System</span>
         </p>
-        <p className="text-[10px] text-slate-600">ASLI KAATA Enterprise Logistics v2.4</p>
+        <p className="text-[11px] text-slate-600">ASLI KAATA Enterprise Logistics v2.4</p>
       </div>
     </div>
   );

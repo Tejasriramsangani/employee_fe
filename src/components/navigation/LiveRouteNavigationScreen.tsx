@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from '../ui';
 import React, { useState, useEffect } from 'react';
 import {
   Navigation,
@@ -273,16 +274,16 @@ export const LiveRouteNavigationScreen: React.FC<LiveRouteNavigationScreenProps>
 
       {/* 2. Top Header Overlay (Exit button + Live Telemetry) */}
       <div className="relative z-20 px-4 pt-3 pb-2 flex items-center justify-between">
-        <button
+        <Button aria-label="Exit Live Navigation"
           onClick={handleExit}
-          className="p-2.5 rounded-full bg-slate-900/80 backdrop-blur-md border border-slate-700/60 text-slate-300 hover:text-white hover:bg-slate-800 transition shadow-lg active:scale-95"
+          className="p-2.5 rounded-full bg-slate-900/80  border border-slate-700/60 text-slate-300 hover:text-white hover:bg-slate-800 transition shadow-lg active:scale-95"
           title="Exit Live Navigation"
         >
           <X className="w-5 h-5" />
-        </button>
+        </Button>
 
         {/* Live EV Telemetry Bar */}
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/85 backdrop-blur-md border border-slate-700/60 shadow-lg text-xs">
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/85  border border-slate-700/60 shadow-lg text-xs">
           <div className="flex items-center gap-1 text-emerald-400 font-medium">
             <Gauge className="w-3.5 h-3.5" />
             <span>{speed == null ? '—' : `${Math.round(speed)} km/h`}</span>
@@ -300,23 +301,23 @@ export const LiveRouteNavigationScreen: React.FC<LiveRouteNavigationScreenProps>
         </div>
 
         {/* Voice Guidance Toggle */}
-        <button
+        <Button
           onClick={() => setIsVoiceMuted(!isVoiceMuted)}
-          className="p-2.5 rounded-full bg-slate-900/80 backdrop-blur-md border border-slate-700/60 text-slate-300 hover:text-white hover:bg-slate-800 transition shadow-lg active:scale-95"
+          className="p-2.5 rounded-full bg-slate-900/80  border border-slate-700/60 text-slate-300 hover:text-white hover:bg-slate-800 transition shadow-lg active:scale-95"
         >
           {isVoiceMuted ? (
             <VolumeX className="w-5 h-5 text-amber-400" />
           ) : (
             <Volume2 className="w-5 h-5 text-emerald-400" />
           )}
-        </button>
+        </Button>
       </div>
 
       {/* 3. Floating Turn Instruction Card (Rapido / Uber Turn Box) */}
       <div className="relative z-20 px-4 mt-1">
-        <div className="rounded-2xl bg-gradient-to-r from-emerald-900/90 via-slate-900/95 to-slate-900/95 border-2 border-emerald-500/40 p-3.5 shadow-2xl backdrop-blur-md">
+        <div className="rounded-2xl bg-gradient-to-r from-emerald-900/90 via-slate-900/95 to-slate-900/95 border-2 border-emerald-500/40 p-3.5 shadow-2xl ">
           <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-bold shadow-lg shadow-emerald-500/30 shrink-0">
+            <div className="w-12 h-12 rounded-xl bg-gold text-slate-950 flex items-center justify-center font-bold shadow-lg  shrink-0">
               {React.createElement(navigationSteps[currentStepIndex].icon, {
                 className: 'w-7 h-7 stroke-[2.5]',
               })}
@@ -330,7 +331,7 @@ export const LiveRouteNavigationScreen: React.FC<LiveRouteNavigationScreenProps>
                   Next: {navigationSteps[currentStepIndex].nextStreet}
                 </span>
               </div>
-              <h2 className="text-sm font-bold text-white mt-1 leading-snug">
+              <h2 className="text-lg font-bold text-white mt-1 leading-snug">
                 {navigationSteps[currentStepIndex].instruction}
               </h2>
             </div>
@@ -341,14 +342,14 @@ export const LiveRouteNavigationScreen: React.FC<LiveRouteNavigationScreenProps>
             <span className="flex items-center gap-1 text-emerald-400 font-medium">
               <Radio className="w-3 h-3 animate-pulse" /> Live Rapido Turn Guidance
             </span>
-            <button
+            <Button
               onClick={() =>
                 setCurrentStepIndex((prev) => (prev + 1) % navigationSteps.length)
               }
               className="text-emerald-400 hover:text-emerald-300 underline font-medium"
             >
               Simulate Next Turn →
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -358,12 +359,12 @@ export const LiveRouteNavigationScreen: React.FC<LiveRouteNavigationScreenProps>
 
       {/* 4. Bottom Trip Status & Slide-to-Arrive Card */}
       <div className="relative z-20 px-4 pb-4">
-        <div className="rounded-3xl bg-slate-900/95 border border-slate-800 p-4 shadow-2xl backdrop-blur-xl">
+        <div className="rounded-3xl bg-slate-900/95 border border-slate-800 p-4 shadow-2xl ">
           {/* ETA & Distance Summary */}
           <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-2xl font-black text-white tracking-tight">
+                <span className="text-2xl font-bold text-white tracking-tight">
                   {minsRemaining == null ? '—' : minsRemaining} <span className="text-sm font-semibold text-emerald-400">min</span>
                 </span>
                 <span className="text-slate-600 font-bold">•</span>
@@ -382,7 +383,7 @@ export const LiveRouteNavigationScreen: React.FC<LiveRouteNavigationScreenProps>
               <span className="inline-block px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-bold">
                 Stop #{stop.stopNumber || 2} of 6
               </span>
-              <p className="text-[11px] text-slate-400 mt-1 font-mono">{stop.pickupCode}</p>
+              <p className="data-value text-[11px] text-slate-400 mt-1 font-mono">{stop.pickupCode}</p>
             </div>
           </div>
 
@@ -390,7 +391,7 @@ export const LiveRouteNavigationScreen: React.FC<LiveRouteNavigationScreenProps>
           <div className="py-3 flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <h3 className="font-bold text-sm text-white truncate">
+                <h3 className="font-bold text-lg text-white truncate">
                   {stop.customerName}
                 </h3>
                 <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
@@ -411,18 +412,18 @@ export const LiveRouteNavigationScreen: React.FC<LiveRouteNavigationScreenProps>
             <div className="flex items-center gap-2 shrink-0">
               <a
                 href={`tel:${stop.phone}`}
-                className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center hover:bg-emerald-500 hover:text-slate-950 transition active:scale-95"
+                className="w-10 h-10 rounded-2xl bg-gold/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center hover:bg-gold hover:text-slate-950 transition active:scale-95"
                 title="Call Customer"
               >
                 <Phone className="w-4 h-4" />
               </a>
-              <button
+              <Button aria-label="Open Google Maps"
                 onClick={handleOpenGoogleMaps}
                 className="w-10 h-10 rounded-2xl bg-slate-800 text-slate-300 border border-slate-700 flex items-center justify-center hover:bg-slate-700 hover:text-white transition active:scale-95"
                 title="Open Google Maps"
               >
                 <ExternalLink className="w-4 h-4" />
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -430,14 +431,14 @@ export const LiveRouteNavigationScreen: React.FC<LiveRouteNavigationScreenProps>
           <div className="mt-2 pt-2 border-t border-slate-800/80">
             {arrivalError && <p className="text-xs text-rose-300 mb-2">{arrivalError}</p>}
             {isArrived ? (
-              <div className="w-full py-3.5 px-4 rounded-2xl bg-emerald-500 text-slate-950 font-black text-center flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30">
+              <div className="w-full py-3.5 px-4 rounded-2xl bg-gold text-slate-950 font-bold text-center flex items-center justify-center gap-2 shadow-lg ">
                 <CheckCircle2 className="w-5 h-5" />
                 Arrived! Launching Step 1 Verification...
               </div>
             ) : (
-              <button
+              <Button aria-label="Next"
                 onClick={handleConfirmArrival}
-                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-400 to-teal-400 text-slate-950 font-black text-sm tracking-wide shadow-xl shadow-emerald-500/25 hover:brightness-105 active:scale-[0.99] transition flex items-center justify-between group"
+                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-400 to-teal-400 text-slate-950 font-bold text-sm tracking-wide shadow-xl  hover:brightness-105 active:scale-[0.99] transition flex items-center justify-between group"
               >
                 <span className="w-7 h-7 rounded-full bg-slate-950/20 flex items-center justify-center">
                   <MapPin className="w-4 h-4 text-slate-950" />
@@ -446,7 +447,7 @@ export const LiveRouteNavigationScreen: React.FC<LiveRouteNavigationScreenProps>
                   Slide / Tap When Arrived at Doorstep
                 </span>
                 <ChevronRight className="w-5 h-5 text-slate-950 group-hover:translate-x-1 transition-transform" />
-              </button>
+              </Button>
             )}
           </div>
         </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from '../ui';
 import React from 'react';
 import {
   ChevronLeft,
@@ -47,18 +48,18 @@ export const PickupVerifiedScreen: React.FC<PickupVerifiedScreenProps> = ({
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between bg-[#F8FAFC] text-slate-900 select-none p-4 pb-safe">
+    <div className="relative min-h-screen flex flex-col justify-between bg-canvas text-slate-900 select-none p-4 pb-safe">
       {/* 1. Header with Back button and centered title */}
       <div>
         <div className="flex items-center justify-between pb-3 border-b border-slate-200/80">
-          <button
+          <Button aria-label="Previous"
             type="button"
             onClick={handleBack}
             className="p-1.5 rounded-full hover:bg-slate-100 text-slate-700 transition cursor-pointer active:scale-95"
           >
             <ChevronLeft className="w-6 h-6" />
-          </button>
-          <h1 className="text-sm font-black text-slate-900 tracking-tight">
+          </Button>
+          <h1 className="text-sm font-bold text-slate-900 tracking-tight">
             Pickup Verified
           </h1>
           <div className="w-8" /> {/* Balance spacer */}
@@ -86,12 +87,12 @@ export const PickupVerifiedScreen: React.FC<PickupVerifiedScreenProps> = ({
             </svg>
 
             {/* Glowing Green Central Disc */}
-            <div className="w-20 h-20 rounded-full bg-[#0A3D2B] text-white flex items-center justify-center shadow-2xl shadow-emerald-900/30 ring-8 ring-emerald-500/10">
+            <div className="w-20 h-20 rounded-full bg-brand text-white flex items-center justify-center shadow-2xl  ring-8 ring-emerald-500/10">
               <CheckCircle2 className="w-11 h-11 text-emerald-400 stroke-[2.5]" />
             </div>
           </div>
 
-          <h2 className="text-xl font-black text-slate-900 tracking-tight mt-4">
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight mt-4">
             Pickup Verified
           </h2>
           <p className="text-xs text-slate-500 mt-1 max-w-[260px] font-medium leading-relaxed">
@@ -109,7 +110,7 @@ export const PickupVerifiedScreen: React.FC<PickupVerifiedScreenProps> = ({
               </div>
               <span>Pickup ID</span>
             </div>
-            <span className="font-mono font-black text-slate-900 text-xs">
+            <span className="data-value font-mono font-bold text-slate-900 text-xs">
               {stop.pickupCode}
             </span>
           </div>
@@ -147,7 +148,7 @@ export const PickupVerifiedScreen: React.FC<PickupVerifiedScreenProps> = ({
 
         {/* 4. Geofence Check Banner (Exact Match to Image 2) */}
         <div className="mt-4 p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200/80 flex items-start gap-2.5 text-xs text-emerald-950">
-          <div className="p-1 rounded-full bg-emerald-100 text-[#0A3D2B] mt-0.5 shrink-0">
+          <div className="p-1 rounded-full bg-emerald-100 text-brand mt-0.5 shrink-0">
             <CheckCircle2 className="w-4 h-4" />
           </div>
           <p className="text-[11px] font-medium text-emerald-900 leading-snug">
@@ -158,14 +159,14 @@ export const PickupVerifiedScreen: React.FC<PickupVerifiedScreenProps> = ({
 
       {/* 5. Primary Action Button: Continue -> (Matches Image 2) */}
       <div className="pt-4 pb-2">
-        <button
+        <Button
           type="button"
           onClick={handleContinue}
-          className="w-full py-4 px-6 rounded-2xl bg-[#0A3D2B] hover:bg-[#0E4D36] text-white font-black text-sm tracking-wide shadow-xl shadow-emerald-950/20 active:scale-[0.99] transition flex items-center justify-center gap-2 cursor-pointer"
+          className="w-full py-4 px-6 rounded-2xl bg-brand hover:bg-[var(--brand-hover)] text-white font-bold text-sm tracking-wide shadow-xl  active:scale-[0.99] transition flex items-center justify-center gap-2 cursor-pointer"
         >
           <span>Continue</span>
           <ArrowRight className="w-4 h-4" />
-        </button>
+        </Button>
       </div>
     </div>
   );

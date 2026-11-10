@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from '../ui';
 import React from 'react';
 import {
   CheckCircle2,
@@ -52,7 +53,7 @@ export const PickupCompletedScreen: React.FC<PickupCompletedScreenProps> = ({ on
   const finalValue = totals.totalAmount != null ? totals.totalAmount / 100 : totalCollectedValueRupees;
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between bg-[#F8FAFC] text-slate-900 select-none pb-36">
+    <div className="relative min-h-screen flex flex-col justify-between bg-canvas text-slate-900 select-none pb-36">
       <div className="p-4 space-y-4">
         {/* 1. Hero Section with Checkmark Sparkles & Vector Cargo Auto (Matches Image 2) */}
         <div className="pt-2 flex flex-col items-center text-center">
@@ -73,7 +74,7 @@ export const PickupCompletedScreen: React.FC<PickupCompletedScreenProps> = ({ on
               <line x1="27" y1="73" x2="20" y2="80" stroke="#10B981" strokeWidth="3" strokeLinecap="round" />
             </svg>
 
-            <div className="w-16 h-16 rounded-full bg-[#0A3D2B] text-white flex items-center justify-center shadow-xl shadow-emerald-900/30">
+            <div className="w-16 h-16 rounded-full bg-brand text-white flex items-center justify-center shadow-xl ">
               <CheckCircle2 className="w-9 h-9 text-emerald-400 stroke-[2.5]" />
             </div>
           </div>
@@ -149,7 +150,7 @@ export const PickupCompletedScreen: React.FC<PickupCompletedScreenProps> = ({ on
             </svg>
           </div>
 
-          <h2 className="text-lg font-black text-slate-900 tracking-tight mt-1">
+          <h2 className="text-lg font-bold text-slate-900 tracking-tight mt-1">
             Pickup Successfully Completed
           </h2>
           <p className="text-xs text-slate-500 mt-1 max-w-[280px] font-medium leading-relaxed">
@@ -165,7 +166,7 @@ export const PickupCompletedScreen: React.FC<PickupCompletedScreenProps> = ({ on
               <span className="flex items-center gap-2 text-slate-500 font-medium">
                 <FileText className="w-3.5 h-3.5 text-emerald-600" /> Pickup ID
               </span>
-              <span className="font-mono font-black text-slate-900">{stop.pickupCode}</span>
+              <span className="data-value font-mono font-bold text-slate-900">{stop.pickupCode}</span>
             </div>
 
             <div className="border-t border-slate-100" />
@@ -185,7 +186,7 @@ export const PickupCompletedScreen: React.FC<PickupCompletedScreenProps> = ({ on
               <span className="flex items-center gap-2 text-slate-500 font-medium">
                 <Scale className="w-3.5 h-3.5 text-emerald-600" /> Total Weight
               </span>
-              <span className="font-mono font-black text-slate-900">{finalWeight} kg</span>
+              <span className="font-mono font-bold text-slate-900">{finalWeight} kg</span>
             </div>
 
             <div className="border-t border-slate-100" />
@@ -195,7 +196,7 @@ export const PickupCompletedScreen: React.FC<PickupCompletedScreenProps> = ({ on
               <span className="flex items-center gap-2 text-slate-500 font-medium">
                 <Coins className="w-3.5 h-3.5 text-emerald-600" /> Final Scrap Value
               </span>
-              <span className="font-mono font-black text-sm text-emerald-800">
+              <span className="font-mono font-bold text-sm text-emerald-800">
                 ₹ {finalValue}
               </span>
             </div>
@@ -209,7 +210,7 @@ export const PickupCompletedScreen: React.FC<PickupCompletedScreenProps> = ({ on
               </span>
               <div className="flex items-center gap-1.5">
                 <span className="font-bold text-slate-900">{paymentMethod === 'CASH' ? 'Cash' : 'UPI'}</span>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-[#0A3D2B] text-[10px] font-black uppercase">
+                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-brand text-[11px] font-bold uppercase">
                   Paid
                 </span>
               </div>
@@ -231,14 +232,14 @@ export const PickupCompletedScreen: React.FC<PickupCompletedScreenProps> = ({ on
       </div>
 
       {/* 3. Sticky Bottom Primary Action: Done (Yellow button matching Image 2) */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 max-w-[440px] mx-auto p-4 pb-safe bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-xl">
-        <button
+      <div className="fixed bottom-0 left-0 right-0 z-40 max-w-[440px] mx-auto p-4 pb-safe bg-white/95  border-t border-slate-200 shadow-xl">
+        <Button
           type="button"
           onClick={handleDone}
-          className="w-full py-3.5 px-6 rounded-2xl bg-[#F59E0B] hover:bg-amber-400 text-slate-950 font-black text-xs tracking-wide shadow-lg shadow-amber-950/20 flex items-center justify-center gap-2 cursor-pointer transition active:scale-[0.99]"
+          className="w-full py-3.5 px-6 rounded-2xl bg-gold hover:bg-amber-400 text-slate-950 font-bold text-xs tracking-wide shadow-lg  flex items-center justify-center gap-2 cursor-pointer transition active:scale-[0.99]"
         >
           <span>Done</span>
-        </button>
+        </Button>
       </div>
     </div>
   );

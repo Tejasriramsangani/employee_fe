@@ -19,11 +19,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  minimumScale: 1,
-  userScalable: false,
   viewportFit: "cover",
-  themeColor: "#0A3D2B",
+  themeColor: "#1B5E3A",
 };
 
 export default function RootLayout({
@@ -33,16 +30,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="h-full">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-        <link
-          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body className="min-h-full bg-slate-950 text-slate-900 antialiased selection:bg-emerald-600 selection:text-white overscroll-none">
+      {/* Browser extensions can add body attributes before React hydrates. */}
+      <body suppressHydrationWarning className="min-h-full bg-slate-950 text-slate-900 antialiased selection:bg-emerald-600 selection:text-white overscroll-none">
         {children}
       </body>
     </html>

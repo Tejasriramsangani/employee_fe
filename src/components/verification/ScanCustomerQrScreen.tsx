@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from '../ui';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ChevronLeft,
@@ -195,18 +196,18 @@ export const ScanCustomerQrScreen: React.FC<ScanCustomerQrScreenProps> = ({
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col pb-safe">
       <header className="px-4 py-3 flex items-center justify-between border-b border-white/10">
-        <button
+        <Button aria-label="Previous"
           type="button"
           onClick={handleBack}
           className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center cursor-pointer"
         >
           <ChevronLeft className="w-5 h-5" />
-        </button>
+        </Button>
         <div className="text-center">
-          <h1 className="text-sm font-black">Scan Customer QR</h1>
-          <p className="text-[10px] text-slate-400 font-mono">{stop.pickupCode}</p>
+          <h1 className="text-sm font-bold">Scan Customer QR</h1>
+          <p className="data-value text-[11px] text-slate-400 font-mono">{stop.pickupCode}</p>
         </div>
-        <button
+        <Button aria-label="Flashlight (device dependent)"
           type="button"
           onClick={() => setIsFlashlightOn(!isFlashlightOn)}
           className={`w-9 h-9 rounded-full flex items-center justify-center cursor-pointer ${
@@ -215,30 +216,30 @@ export const ScanCustomerQrScreen: React.FC<ScanCustomerQrScreenProps> = ({
           title="Flashlight (device dependent)"
         >
           <Flashlight className="w-4 h-4" />
-        </button>
+        </Button>
       </header>
 
       <div className="px-4 pt-3 flex gap-2">
-        <button
+        <Button
           type="button"
           // Bug 8 fix: clear stale error when switching modes.
           onClick={() => { setMode('camera'); setScanError(''); }}
           className={`flex-1 py-2 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer ${
-            mode === 'camera' ? 'bg-emerald-500 text-slate-950' : 'bg-white/10 text-white'
+            mode === 'camera' ? 'bg-gold text-slate-950' : 'bg-white/10 text-white'
           }`}
         >
           <Camera className="w-3.5 h-3.5" /> Camera
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
           // Bug 8 fix: clear stale error when switching modes.
           onClick={() => { setMode('manual'); setScanError(''); }}
           className={`flex-1 py-2 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer ${
-            mode === 'manual' ? 'bg-emerald-500 text-slate-950' : 'bg-white/10 text-white'
+            mode === 'manual' ? 'bg-gold text-slate-950' : 'bg-white/10 text-white'
           }`}
         >
           <Keyboard className="w-3.5 h-3.5" /> Enter code
-        </button>
+        </Button>
       </div>
 
       <div className="flex-1 px-4 py-4 space-y-4">
@@ -258,25 +259,25 @@ export const ScanCustomerQrScreen: React.FC<ScanCustomerQrScreenProps> = ({
           </div>
         ) : (
           <div className="space-y-3">
-            <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">
+            <label className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">
               Paste / type QR token from customer
             </label>
-            <textarea
+            <textarea aria-label="AK-QR-…"
               value={manualToken}
               onChange={(e) => setManualToken(e.target.value)}
               rows={4}
               placeholder="AK-QR-…"
               className="w-full rounded-2xl bg-white/5 border border-white/15 px-3 py-3 text-xs text-white placeholder:text-slate-500 outline-none focus:border-emerald-400"
             />
-            <button
+            <Button
               type="button"
               disabled={verifying || !manualToken.trim()}
               onClick={() => verifyToken(manualToken)}
-              className="w-full py-3 rounded-2xl bg-emerald-500 text-slate-950 font-black text-sm disabled:opacity-40 cursor-pointer inline-flex items-center justify-center gap-2"
+              className="w-full py-3 rounded-2xl bg-gold text-slate-950 font-bold text-sm disabled:opacity-40 cursor-pointer inline-flex items-center justify-center gap-2"
             >
               {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
               Verify & start pickup
-            </button>
+            </Button>
           </div>
         )}
 

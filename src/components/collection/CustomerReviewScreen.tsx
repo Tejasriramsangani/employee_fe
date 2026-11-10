@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from '../ui';
 import React, { useState } from 'react';
 import {
   ChevronLeft,
@@ -86,18 +87,18 @@ export const CustomerReviewScreen: React.FC<CustomerReviewScreenProps> = ({
   };
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between bg-[#F8FAFC] text-slate-900 select-none pb-36">
+    <div className="relative min-h-screen flex flex-col justify-between bg-canvas text-slate-900 select-none pb-36">
       <div className="p-4 space-y-3">
         {/* 1. Header with back button & title */}
         <div className="flex items-center justify-between pb-2 border-b border-slate-200/80">
-          <button
+          <Button aria-label="Previous"
             type="button"
             onClick={handleBack}
             className="p-1.5 rounded-full hover:bg-slate-100 text-slate-700 transition cursor-pointer active:scale-95"
           >
             <ChevronLeft className="w-6 h-6" />
-          </button>
-          <h1 className="text-sm font-black text-slate-900 tracking-tight">
+          </Button>
+          <h1 className="text-sm font-bold text-slate-900 tracking-tight">
             Review Pickup Details
           </h1>
           <div className="w-8" />
@@ -117,7 +118,7 @@ export const CustomerReviewScreen: React.FC<CustomerReviewScreenProps> = ({
         <div className="p-4 rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-3">
           <div className="flex items-start justify-between">
             <div>
-              <h2 className="font-black text-sm text-slate-900">{stop.customerName}</h2>
+              <h2 className="font-bold text-lg text-slate-900">{stop.customerName}</h2>
               <span className="text-[11px] text-slate-400 font-mono">Customer ID: {stop.customerId}</span>
             </div>
             <a
@@ -142,7 +143,7 @@ export const CustomerReviewScreen: React.FC<CustomerReviewScreenProps> = ({
             </div>
             <div className="flex items-center gap-2">
               <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span className="font-mono text-slate-500">Pickup ID: {stop.pickupCode}</span>
+              <span className="data-value font-mono text-slate-500">Pickup ID: {stop.pickupCode}</span>
             </div>
           </div>
 
@@ -152,28 +153,28 @@ export const CustomerReviewScreen: React.FC<CustomerReviewScreenProps> = ({
               <CreditCard className="w-3.5 h-3.5 text-slate-500" /> Payment Method
             </span>
             <div className="flex items-center gap-1.5">
-              <button
+              <Button
                 type="button"
                 onClick={() => setPaymentMethod('CASH')}
                 className={`px-3 py-1 rounded-xl text-xs font-bold transition ${
                   paymentMethod === 'CASH'
-                    ? 'bg-[#0A3D2B] text-white shadow-xs'
+                    ? 'bg-brand text-white shadow-xs'
                     : 'bg-slate-100 text-slate-600'
                 }`}
               >
                 Cash
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={() => setPaymentMethod('UPI')}
                 className={`px-3 py-1 rounded-xl text-xs font-bold transition ${
                   paymentMethod === 'UPI'
-                    ? 'bg-[#0A3D2B] text-white shadow-xs'
+                    ? 'bg-brand text-white shadow-xs'
                     : 'bg-slate-100 text-slate-600'
                 }`}
               >
                 UPI
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -181,13 +182,13 @@ export const CustomerReviewScreen: React.FC<CustomerReviewScreenProps> = ({
         {/* 4. Collected Items Table (Matches Image 5) */}
         <div className="p-4 rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="font-extrabold text-xs text-slate-900">
+            <h3 className="font-extrabold text-lg text-slate-900">
               Collected Items ({collectedItems.length})
             </h3>
           </div>
 
           {/* Table Header */}
-          <div className="grid grid-cols-12 text-[10px] font-bold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-100">
+          <div className="grid grid-cols-12 text-[11px] font-bold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-100">
             <div className="col-span-5">Item</div>
             <div className="col-span-2 text-right">Weight</div>
             <div className="col-span-2 text-right">Rate/kg</div>
@@ -211,7 +212,7 @@ export const CustomerReviewScreen: React.FC<CustomerReviewScreenProps> = ({
                 <div className="col-span-2 text-right font-mono font-medium text-slate-500">
                   ₹ {item.ratePerKg}
                 </div>
-                <div className="col-span-3 text-right font-mono font-black text-emerald-800">
+                <div className="col-span-3 text-right font-mono font-bold text-emerald-800">
                   ₹ {item.lineTotalRupees}
                 </div>
               </div>
@@ -221,10 +222,10 @@ export const CustomerReviewScreen: React.FC<CustomerReviewScreenProps> = ({
           {/* Grand Total Metrics */}
           <div className="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2">
             <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-100 flex items-center gap-2">
-              <Scale className="w-4 h-4 text-[#0A3D2B]" />
+              <Scale className="w-4 h-4 text-brand" />
               <div>
-                <span className="text-[10px] text-slate-500 block font-semibold">Total Weight</span>
-                <span className="font-mono font-black text-xs text-slate-900">
+                <span className="text-[11px] text-slate-500 block font-semibold">Total Weight</span>
+                <span className="data-value font-mono font-bold text-xs text-slate-900">
                   {totalCollectedWeightKg} kg
                 </span>
               </div>
@@ -233,8 +234,8 @@ export const CustomerReviewScreen: React.FC<CustomerReviewScreenProps> = ({
             <div className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-100 flex items-center gap-2">
               <Coins className="w-4 h-4 text-amber-700" />
               <div>
-                <span className="text-[10px] text-slate-500 block font-semibold">Total Scrap Value</span>
-                <span className="font-mono font-black text-xs text-slate-900">
+                <span className="text-[11px] text-slate-500 block font-semibold">Total Scrap Value</span>
+                <span className="data-value font-mono font-bold text-xs text-slate-900">
                   ₹ {totalCollectedValueRupees}
                 </span>
               </div>
@@ -242,24 +243,24 @@ export const CustomerReviewScreen: React.FC<CustomerReviewScreenProps> = ({
           </div>
 
           {/* Edit Details Button */}
-          <button
+          <Button
             type="button"
             onClick={handleEdit}
             className="w-full py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50 transition flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <Edit3 className="w-3.5 h-3.5 text-slate-500" />
             <span>Edit Details</span>
-          </button>
+          </Button>
         </div>
 
         {/* 5. Customer Confirmation Agreement Banner (Matches Image 5) */}
         <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200/90 flex items-center gap-2.5 text-xs text-emerald-950">
-          <div className="p-1.5 rounded-xl bg-emerald-100 text-[#0A3D2B] shrink-0">
+          <div className="p-1.5 rounded-xl bg-emerald-100 text-brand shrink-0">
             <Handshake className="w-4 h-4" />
           </div>
           <div>
-            <span className="font-bold text-[#0A3D2B] block">Customer confirms with a code</span>
-            <span className="text-[10px] text-emerald-800">
+            <span className="font-bold text-brand block">Customer confirms with a code</span>
+            <span className="text-[11px] text-emerald-800">
               The customer sees this same summary on their phone, with a 6-digit code under it. If they agree and
               have been paid, they read the code out to you. You enter it on the next screen.
             </span>
@@ -268,16 +269,16 @@ export const CustomerReviewScreen: React.FC<CustomerReviewScreenProps> = ({
       </div>
 
       {/* 6. Sticky Bottom Action: Customer Confirmed -> (Yellow Button matching Image 5) */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 max-w-[440px] mx-auto p-4 pb-safe bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-xl">
+      <div className="fixed bottom-0 left-0 right-0 z-40 max-w-[440px] mx-auto p-4 pb-safe bg-white/95  border-t border-slate-200 shadow-xl">
         {confirmError && <p className="text-xs text-rose-600 font-semibold mb-2">{confirmError}</p>}
-        <button
+        <Button
           type="button"
           onClick={handleConfirm}
-          className="w-full py-3.5 px-6 rounded-2xl bg-[#F59E0B] hover:bg-amber-400 text-slate-950 font-black text-xs tracking-wide shadow-lg shadow-amber-950/20 flex items-center justify-center gap-2 cursor-pointer transition active:scale-[0.99]"
+          className="w-full py-3.5 px-6 rounded-2xl bg-gold hover:bg-amber-400 text-slate-950 font-bold text-xs tracking-wide shadow-lg  flex items-center justify-center gap-2 cursor-pointer transition active:scale-[0.99]"
         >
           <span>Enter customer's code</span>
           <ArrowRight className="w-4 h-4" />
-        </button>
+        </Button>
       </div>
     </div>
   );

@@ -83,7 +83,7 @@ function EmployeeAppContent() {
       <MobileFrameShell>
         <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
           <div className="w-10 h-10 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4" />
-          <p className="text-xs font-bold text-slate-300">Loading Asli Kaata Field Ops...</p>
+          <p className="text-xs font-medium text-slate-300">Loading Asli Kaata Field Ops...</p>
         </div>
       </MobileFrameShell>
     );

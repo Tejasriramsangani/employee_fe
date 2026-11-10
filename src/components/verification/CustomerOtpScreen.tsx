@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from '../ui';
 import React, { useState, useRef } from 'react';
 import {
   ChevronLeft,
@@ -94,18 +95,18 @@ export const CustomerOtpScreen: React.FC<CustomerOtpScreenProps> = ({
   const finalValue = totalCollectedValueRupees;
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between bg-[#F8FAFC] text-slate-900 select-none pb-36">
+    <div className="relative min-h-screen flex flex-col justify-between bg-canvas text-slate-900 select-none pb-36">
       <div className="p-4 space-y-4">
         {/* 1. Header with back button & title */}
         <div className="flex items-center justify-between pb-2 border-b border-slate-200/80">
-          <button
+          <Button aria-label="Previous"
             type="button"
             onClick={handleBack}
             className="p-1.5 rounded-full hover:bg-slate-100 text-slate-700 transition cursor-pointer active:scale-95"
           >
             <ChevronLeft className="w-6 h-6" />
-          </button>
-          <h1 className="text-sm font-black text-slate-900 tracking-tight">
+          </Button>
+          <h1 className="text-sm font-bold text-slate-900 tracking-tight">
             Confirm Pickup Completion
           </h1>
           <div className="w-8" />
@@ -117,18 +118,18 @@ export const CustomerOtpScreen: React.FC<CustomerOtpScreenProps> = ({
             <User className="w-5 h-5 text-slate-600" />
           </div>
           <div>
-            <h2 className="font-bold text-xs text-slate-900">{stop.customerName}</h2>
+            <h2 className="font-bold text-lg text-slate-900">{stop.customerName}</h2>
             <span className="text-[11px] text-slate-400 font-mono">Customer ID: {stop.customerId}</span>
           </div>
         </div>
 
         {/* 3. Instruction Green Banner (Matches Image 1) */}
         <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200/80 flex items-start gap-3 text-xs text-emerald-950">
-          <div className="p-1.5 rounded-full bg-emerald-100 text-[#0A3D2B] mt-0.5 shrink-0">
+          <div className="p-1.5 rounded-full bg-emerald-100 text-brand mt-0.5 shrink-0">
             <CheckCircle2 className="w-4 h-4" />
           </div>
           <div>
-            <span className="font-bold text-[#0A3D2B] block text-xs">Enter Customer OTP</span>
+            <span className="font-bold text-brand block text-xs">Enter Customer OTP</span>
             <span className="text-[11px] text-emerald-900 mt-0.5 block leading-snug">
               Ask the customer to open their pickup in the ASLI KAATA app and read out the 6-digit completion code shown there. No SMS is sent.
             </span>
@@ -150,7 +151,7 @@ export const CustomerOtpScreen: React.FC<CustomerOtpScreenProps> = ({
                 value={digit}
                 onChange={(e) => handleDigitChange(idx, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(idx, e)}
-                className="w-11 h-13 text-center text-xl font-mono font-black rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-600 shadow-sm transition"
+                className="w-11 h-13 text-center text-xl font-sans font-bold rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-600 shadow-sm transition"
               />
             ))}
           </div>
@@ -162,14 +163,14 @@ export const CustomerOtpScreen: React.FC<CustomerOtpScreenProps> = ({
 
         {/* 5. Pickup Details Summary Card (Matches Image 1) */}
         <div className="p-4 rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-3">
-          <h3 className="font-extrabold text-xs text-slate-900">Pickup Details</h3>
+          <h3 className="font-extrabold text-lg text-slate-900">Pickup Details</h3>
 
           <div className="space-y-2.5 text-xs text-slate-600 pt-1 border-t border-slate-100">
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-2 text-slate-500">
                 <FileText className="w-3.5 h-3.5 text-emerald-600" /> Pickup ID
               </span>
-              <span className="font-mono font-black text-slate-900">{stop.pickupCode}</span>
+              <span className="data-value font-mono font-bold text-slate-900">{stop.pickupCode}</span>
             </div>
 
             <div className="flex items-center justify-between">
@@ -183,7 +184,7 @@ export const CustomerOtpScreen: React.FC<CustomerOtpScreenProps> = ({
               <span className="flex items-center gap-2 text-slate-500">
                 <Coins className="w-3.5 h-3.5 text-emerald-600" /> Final Scrap Value
               </span>
-              <span className="font-mono font-black text-sm text-emerald-800">
+              <span className="font-mono font-bold text-sm text-emerald-800">
                 ₹ {finalValue}
               </span>
             </div>
@@ -192,16 +193,16 @@ export const CustomerOtpScreen: React.FC<CustomerOtpScreenProps> = ({
       </div>
 
       {/* 6. Sticky Bottom Action: Verify OTP -> (Matches Image 1) */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 max-w-[440px] mx-auto p-4 pb-safe bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-xl">
-        <button
+      <div className="fixed bottom-0 left-0 right-0 z-40 max-w-[440px] mx-auto p-4 pb-safe bg-white/95  border-t border-slate-200 shadow-xl">
+        <Button
           type="button"
           onClick={handleVerifyOtp}
           disabled={isVerifying || otpDigits.some((digit) => !digit)}
-          className="w-full py-3.5 px-6 rounded-2xl bg-[#0A3D2B] hover:bg-[#0E4D36] text-white font-black text-xs tracking-wide shadow-lg shadow-emerald-950/20 flex items-center justify-center gap-2 cursor-pointer transition active:scale-[0.99]"
+          className="w-full py-3.5 px-6 rounded-2xl bg-brand hover:bg-[var(--brand-hover)] text-white font-bold text-xs tracking-wide shadow-lg  flex items-center justify-center gap-2 cursor-pointer transition active:scale-[0.99]"
         >
           <span>{isVerifying ? 'Verifying…' : 'Verify OTP'}</span>
           <ArrowRight className="w-4 h-4" />
-        </button>
+        </Button>
       </div>
     </div>
   );

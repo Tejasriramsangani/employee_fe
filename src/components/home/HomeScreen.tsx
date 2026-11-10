@@ -1,5 +1,6 @@
 "use client";
 
+import { Button, DialogSurface } from '../ui';
 import React, { useState } from 'react';
 import Image from 'next/image';
 import {
@@ -88,7 +89,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       <div className="flex items-center justify-between pt-1">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-lg font-black text-slate-900 tracking-tight">
+            <h1 className="text-lg font-bold text-slate-900 tracking-tight">
               {greeting}, {profile.name.split(' ')[0]}
             </h1>
           </div>
@@ -99,17 +100,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
         {/* Right Header: Test Alert Trigger, Notification Bell & Profile Avatar */}
         <div className="flex items-center gap-2">
-          <button
+          <Button aria-label="Notifications"
             type="button"
             className="p-2.5 rounded-full bg-white border border-slate-200/90 text-slate-700 shadow-xs relative hover:bg-slate-50 cursor-pointer"
           >
             <Bell className="w-4 h-4 text-slate-700" />
             <span className="w-2 h-2 rounded-full bg-rose-500 absolute top-1.5 right-1.5 ring-2 ring-white"></span>
-          </button>
+          </Button>
 
           {/* Avatar in Green Cap / Uniform */}
           <div className="w-10 h-10 rounded-full bg-emerald-100 border-2 border-emerald-500/80 p-0.5 relative shadow-xs flex items-center justify-center overflow-hidden">
-            <div className="w-full h-full rounded-full bg-[#0A3D2B] flex items-center justify-center text-white font-bold text-xs uppercase">
+            <div className="w-full h-full rounded-full bg-brand flex items-center justify-center text-white font-bold text-xs uppercase">
               {profile.name !== '—' ? profile.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2) : '—'}
             </div>
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 absolute bottom-0 right-0 border-2 border-white"></span>
@@ -121,7 +122,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       <div
         className={`rounded-2xl px-4 py-3 flex items-center justify-between gap-3 border transition-colors ${
           profile.onDuty
-            ? 'bg-gradient-to-r from-[#0A3D2B] to-[#0E4D36] border-emerald-700 text-white shadow-md'
+            ? 'bg-gradient-to-r from-brand to-[var(--brand-hover)] border-emerald-700 text-white shadow-md'
             : 'bg-white border-slate-200 text-slate-800'
         }`}
       >
@@ -134,13 +135,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <Power className="w-4.5 h-4.5" />
           </span>
           <div className="min-w-0">
-            <p className="text-sm font-black leading-tight">{profile.onDuty ? 'You are ON DUTY' : 'You are OFF DUTY'}</p>
+            <p className="text-sm font-medium leading-tight">{profile.onDuty ? 'You are ON DUTY' : 'You are OFF DUTY'}</p>
             <p className={`text-[11px] leading-snug ${profile.onDuty ? 'text-emerald-200' : 'text-slate-500'}`}>
               {profile.onDuty ? 'New pickups can be assigned to you' : 'Switch on to get new pickups'}
             </p>
           </div>
         </div>
-        <button
+        <Button
           type="button"
           role="switch"
           aria-checked={profile.onDuty}
@@ -156,7 +157,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               profile.onDuty ? 'translate-x-6' : 'translate-x-0'
             }`}
           />
-        </button>
+        </Button>
       </div>
       {dutyError && <p className="text-[11px] font-semibold text-rose-600 -mt-2 px-1">{dutyError}</p>}
 
@@ -176,10 +177,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <Calendar className="w-3.5 h-3.5 text-emerald-700" />
             </div>
             <div>
-              <div className="font-mono font-black text-slate-900 text-sm leading-none">
+              <div className="font-mono font-bold text-slate-900 text-sm leading-none">
                 {totalScheduled < 10 ? `0${totalScheduled}` : totalScheduled}
               </div>
-              <div className="text-[9px] text-slate-500 font-semibold mt-0.5 leading-tight">
+              <div className="text-[11px] text-slate-500 font-semibold mt-0.5 leading-tight">
                 Scheduled<br />Today
               </div>
             </div>
@@ -191,10 +192,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <Clock className="w-3.5 h-3.5 text-amber-700" />
             </div>
             <div>
-              <div className="font-mono font-black text-slate-900 text-sm leading-none">
+              <div className="font-mono font-bold text-slate-900 text-sm leading-none">
                 {inProgressCount < 10 ? `0${inProgressCount}` : inProgressCount}
               </div>
-              <div className="text-[9px] text-slate-500 font-semibold mt-0.5 leading-tight">
+              <div className="text-[11px] text-slate-500 font-semibold mt-0.5 leading-tight">
                 In<br />Progress
               </div>
             </div>
@@ -206,10 +207,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
             </div>
             <div>
-              <div className="font-mono font-black text-slate-900 text-sm leading-none">
+              <div className="font-mono font-bold text-slate-900 text-sm leading-none">
                 {completedCount < 10 ? `0${completedCount}` : completedCount}
               </div>
-              <div className="text-[9px] text-slate-500 font-semibold mt-0.5 leading-tight">
+              <div className="text-[11px] text-slate-500 font-semibold mt-0.5 leading-tight">
                 Completed
               </div>
             </div>
@@ -226,7 +227,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <Compass className="w-7 h-7 stroke-[1.8]" />
           </div>
           <div>
-            <h3 className="font-black text-slate-900 text-sm">Standby • Ready for Route Assignment</h3>
+            <h3 className="font-bold text-slate-900 text-lg">Standby • Ready for Route Assignment</h3>
             <p className="text-xs text-slate-500 max-w-xs mx-auto mt-1 leading-relaxed">
               No pickups assigned to your vehicle yet today. Pickups dispatched from the Yard Cockpit will appear here in real time.
             </p>
@@ -240,18 +241,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <>
           {/* --- STATE 1: CURRENT PICKUP (IN PROGRESS) --- */}
           {currentPickup && (
-            <div className="p-4 rounded-3xl bg-gradient-to-br from-[#0A3D2B] via-[#0E4D36] to-[#062418] text-white shadow-xl space-y-3 relative overflow-hidden">
+            <div className="p-4 rounded-3xl bg-gradient-to-br from-brand via-[var(--brand-hover)] to-[var(--brand-dark)] text-white shadow-xl space-y-3 relative overflow-hidden">
               {/* Subtle background circuit/grid decorative */}
               <div className="absolute -right-8 -top-8 w-36 h-36 bg-emerald-400/10 rounded-full blur-xl pointer-events-none"></div>
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-emerald-200">Current Pickup</span>
-                  <span className="px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black text-[9px] uppercase tracking-wide">
+                  <span className="px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 font-bold text-[11px] uppercase tracking-wide">
                     In Progress
                   </span>
                 </div>
-                <span className="font-mono font-extrabold text-xs text-emerald-300">
+                <span className="data-value font-mono font-extrabold text-xs text-emerald-300">
                   {currentPickup.pickupCode}
                 </span>
               </div>
@@ -259,7 +260,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               {/* Customer & Route Details with Mini-Map graphic */}
               <div className="flex items-center justify-between gap-3">
                 <div className="space-y-1.5 flex-1 min-w-0">
-                  <div className="font-black text-sm text-white truncate">
+                  <div className="font-bold text-sm text-white truncate">
                     {currentPickup.customerName}
                   </div>
 
@@ -311,18 +312,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     <Star className="w-4 h-4 fill-amber-400 text-amber-500" />
                     <span className="font-extrabold text-xs text-slate-900">Next Pickup</span>
                   </div>
-                  <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                  <span className="text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
                     {nextScheduledPickup.scheduledTime}
                   </span>
                 </div>
 
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-2.5">
-                    <div className="px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-[#0A3D2B] font-mono font-bold text-xs mt-0.5">
+                    <div className="px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-brand font-mono font-bold text-xs mt-0.5">
                       {nextScheduledPickup.scheduledTime}
                     </div>
                     <div>
-                      <div className="font-mono text-[10px] text-slate-400">{nextScheduledPickup.pickupCode}</div>
+                      <div className="font-mono text-[11px] text-slate-400">{nextScheduledPickup.pickupCode}</div>
                       <div className="font-bold text-slate-900 text-sm">{nextScheduledPickup.customerName}</div>
                       <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
                         <MapPin className="w-3 h-3 text-slate-400" />
@@ -335,13 +336,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
                 <div className="space-y-2 pt-2 border-t border-slate-100">
                   <PickupActions stop={nextScheduledPickup} onStart={handleStart} />
-                  <button
+                  <Button
                     type="button"
                     onClick={() => setSelectedStopForDrawer(nextScheduledPickup)}
                     className="w-full text-center text-[11px] font-bold text-slate-500 hover:text-slate-700 cursor-pointer"
                   >
                     View details
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -349,8 +350,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <div className="p-3 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 flex items-center gap-2.5 text-xs text-slate-700">
                 <Clock className="w-4 h-4 text-emerald-600 shrink-0" />
                 <div>
-                  <span className="font-bold text-[#0A3D2B] block">Complete pickups on time</span>
-                  <span className="text-[10px] text-slate-500">Keep customers happy and earn better incentives.</span>
+                  <span className="font-bold text-brand block">Complete pickups on time</span>
+                  <span className="text-[11px] text-slate-500">Keep customers happy and earn better incentives.</span>
                 </div>
               </div>
             </div>
@@ -359,11 +360,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           {/* --- STATE 3: SHIFT COMPLETED CELEBRATION --- */}
           {shiftStatus === 'COMPLETED' && (
             <div className="space-y-3">
-              <div className="p-4 rounded-3xl bg-gradient-to-br from-[#0A3D2B] to-[#10B981] text-white shadow-xl space-y-2 text-center relative overflow-hidden">
+              <div className="p-4 rounded-3xl bg-gradient-to-br from-brand to-brand text-white shadow-xl space-y-2 text-center relative overflow-hidden">
                 <div className="w-12 h-12 rounded-full bg-white/10 mx-auto flex items-center justify-center shadow-inner">
                   <Trophy className="w-7 h-7 text-amber-300 animate-bounce" />
                 </div>
-                <h3 className="font-black text-base tracking-tight">All today's pickups completed!</h3>
+                <h3 className="font-bold text-base tracking-tight">All today's pickups completed!</h3>
                 <p className="text-xs text-emerald-100 font-medium">Great work. Keep it going!</p>
               </div>
 
@@ -372,7 +373,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <Star className="w-5 h-5 fill-amber-400 text-amber-500 shrink-0" />
                 <div>
                   <span className="font-bold text-slate-900 block">You completed {completedCount} pickups today!</span>
-                  <span className="text-[10px] text-slate-500">Your efforts help build a cleaner and greener city.</span>
+                  <span className="text-[11px] text-slate-500">Your efforts help build a cleaner and greener city.</span>
                 </div>
               </div>
             </div>
@@ -384,14 +385,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <span className="font-extrabold text-xs text-slate-900">Today's Pickups</span>
-          <button
+          <Button
             type="button"
             onClick={() => setActiveTab('MY_PICKUPS')}
             className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 cursor-pointer"
           >
             <span>View All ({routeStops.length})</span>
             <ArrowRight className="w-3 h-3" />
-          </button>
+          </Button>
         </div>
 
         <div className="space-y-2">
@@ -413,9 +414,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono font-bold text-[11px] text-slate-400">{stop.pickupCode}</span>
+                      <span className="data-value font-mono font-bold text-[11px] text-slate-400">{stop.pickupCode}</span>
                       <span
-                        className={`px-1.5 py-0.2 rounded text-[9px] font-black uppercase ${
+                        className={`px-1.5 py-0.2 rounded text-[11px] font-bold uppercase ${
                           stop.status === 'COMPLETED'
                             ? 'bg-emerald-100 text-emerald-800'
                             : stop.status === 'IN_PROGRESS'
@@ -443,20 +444,20 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
       {/* 5. Stop Inspector Drawer Modal */}
       {selectedStopForDrawer && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/70 backdrop-blur-xs p-0 sm:p-4">
-          <div className="w-full max-w-[440px] bg-white rounded-t-[32px] sm:rounded-3xl p-5 pb-safe shadow-2xl space-y-4 animate-in slide-in-from-bottom-6 duration-200">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/70  p-0 sm:p-4">
+          <DialogSurface onClose={() => setSelectedStopForDrawer(null)} label="Home" className="w-full max-w-[440px] bg-white rounded-t-2xl sm:rounded-3xl p-5 pb-safe shadow-2xl space-y-4 animate-in slide-in-from-bottom-6 duration-200">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <span className="font-mono text-[10px] text-slate-400">{selectedStopForDrawer.pickupCode}</span>
-                <h3 className="font-black text-slate-900 text-sm">{selectedStopForDrawer.customerName}</h3>
+                <span className="data-value font-mono text-[11px] text-slate-400">{selectedStopForDrawer.pickupCode}</span>
+                <h3 className="font-bold text-slate-900 text-lg">{selectedStopForDrawer.customerName}</h3>
               </div>
-              <button
+              <Button aria-label="Close"
                 type="button"
                 onClick={() => setSelectedStopForDrawer(null)}
                 className="p-1.5 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 cursor-pointer"
               >
                 <X className="w-4 h-4" />
-              </button>
+              </Button>
             </div>
 
             <div className="space-y-2 text-xs text-slate-600">
@@ -465,16 +466,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   <MapPin className="w-3.5 h-3.5 text-emerald-600" />
                   <span>{selectedStopForDrawer.address}</span>
                 </div>
-                <div className="text-[10px] text-slate-400">{selectedStopForDrawer.landmark}</div>
+                <div className="text-[11px] text-slate-400">{selectedStopForDrawer.landmark}</div>
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-slate-700 font-medium">
                 <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
-                  <span className="text-[9px] text-slate-400 font-bold uppercase block">Time Window</span>
+                  <span className="text-[11px] text-slate-400 font-bold uppercase block">Time Window</span>
                   <span className="font-bold text-slate-900 text-xs mt-0.5 block">{selectedStopForDrawer.timeSlot}</span>
                 </div>
                 <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
-                  <span className="text-[9px] text-slate-400 font-bold uppercase block">Est. Weight</span>
+                  <span className="text-[11px] text-slate-400 font-bold uppercase block">Est. Weight</span>
                   <span className="font-bold text-emerald-800 text-xs mt-0.5 block">
                     {selectedStopForDrawer.estimatedWeightLabel}
                   </span>
@@ -488,7 +489,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <PickupActions stop={selectedStopForDrawer} onStart={handleStart} />
               </div>
             )}
-          </div>
+          </DialogSurface>
         </div>
       )}
     </div>

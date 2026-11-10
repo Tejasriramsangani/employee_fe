@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from '../ui';
 import React from 'react';
 import { Bell, CheckCheck, ClipboardList, CalendarClock, XCircle, PartyPopper, Info } from 'lucide-react';
 import { useEmployee } from '../../context/EmployeeContext';
@@ -42,15 +43,15 @@ export const NotificationsScreen: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-28">
-      <div className="bg-[#0A3D2B] text-white px-5 pt-8 pb-5">
+      <div className="bg-brand text-white px-5 pt-8 pb-5">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-black tracking-tight">Notifications</h1>
+            <h1 className="text-lg font-bold tracking-tight">Notifications</h1>
             <p className="text-[11px] text-emerald-200 font-semibold">
               {unreadNotificationCount > 0 ? `${unreadNotificationCount} unread` : 'You are all caught up'}
             </p>
           </div>
-          <button
+          <Button
             type="button"
             onClick={() => void markAllNotificationsRead()}
             disabled={unreadNotificationCount === 0}
@@ -58,7 +59,7 @@ export const NotificationsScreen: React.FC = () => {
           >
             <CheckCheck className="w-3.5 h-3.5" />
             Mark all read
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -68,15 +69,15 @@ export const NotificationsScreen: React.FC = () => {
             <div className="w-14 h-14 rounded-2xl bg-white border border-slate-200 text-slate-400 flex items-center justify-center mx-auto">
               <Bell className="w-6 h-6" />
             </div>
-            <p className="text-sm font-bold text-slate-700">No notifications yet</p>
+            <p className="text-sm font-medium text-slate-700">No notifications yet</p>
             <p className="text-xs text-slate-500">New pickups and updates from the team will show up here.</p>
-            <button
+            <Button
               type="button"
               onClick={() => void refreshNotifications()}
               className="text-xs font-bold text-emerald-700 hover:underline cursor-pointer"
             >
               Refresh
-            </button>
+            </Button>
           </div>
         ) : (
           notifications.map((n) => {
@@ -84,7 +85,7 @@ export const NotificationsScreen: React.FC = () => {
             const Icon = meta.icon;
             const unread = !n.readAt;
             return (
-              <button
+              <Button
                 key={n.id}
                 type="button"
                 onClick={() => open(n)}
@@ -97,15 +98,15 @@ export const NotificationsScreen: React.FC = () => {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
-                    <span className={`text-sm leading-tight ${unread ? 'font-black text-slate-900' : 'font-semibold text-slate-700'}`}>
+                    <span className={`text-sm leading-tight ${unread ? 'font-bold text-slate-900' : 'font-semibold text-slate-700'}`}>
                       {n.title}
                     </span>
                     {unread && <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 mt-1.5" />}
                   </div>
                   <p className="text-xs text-slate-600 mt-1 leading-relaxed break-words">{n.body}</p>
-                  <p className="text-[10px] text-slate-400 mt-1.5 font-semibold">{timeAgo(n.createdAt)}</p>
+                  <p className="text-[11px] text-slate-400 mt-1.5 font-semibold">{timeAgo(n.createdAt)}</p>
                 </div>
-              </button>
+              </Button>
             );
           })
         )}
